@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Surface Electrode Visualization</title>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width" />
+
+<link rel="stylesheet" href="iEEG_surface.css" type="text/css" />
+
+<script type="text/javascript" src="b4w.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+
+<script type="text/javascript" src="iEEG_surface.js"></script>
+
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.js"></script>
+
+<script src="jscolor.min.js"></script>
+<script src="papaparse.min.js"></script>
+
+<style>
+div.button-wrap {
+    margin-left: 3px;
+    margin-right: 3px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="main_canvas_container" style="width:100%; float:left;"></div>
+
+<div id="options_panel" style="width:0%; position:absolute; right: 0; overflow: auto; max-height: 1000px;">
+    <div id="display_panel" data-role="collapsible">
+    <h4>Display</h4>
+    <fieldset data-role="controlgroup" data-type="horizontal">
+        <legend>Show hemisphere</legend>
+        <input type="checkbox" name="cortex_left" id="cortex_left" checked>
+        <label for="cortex_left">Left</label>
+        <input type="checkbox" name="cortex_right" id="cortex_right" checked>
+        <label for="cortex_right">Right</label>
+    </fieldset>
+    <fieldset data-role="controlgroup" data-type="horizontal">
+        <legend>Show contacts</legend>
+        <input type="checkbox" name="monopolars" id="monopolars" checked>
+        <label for="monopolars">Monopolars</label>
+        <input type="checkbox" name="bipolars" id="bipolars" checked>
+        <label for="bipolars">Bipolars</label>
+        <input type="checkbox" name="monopolars_start" id="monopolars_start">
+        <label for="monopolars_start">Original</label>
+    </fieldset>
+    <fieldset data-role="controlgroup" data-type="horizontal">
+        <legend>Cortical regions</legend>
+        <input type="checkbox" name="cortex_color" id="cortex_color">
+        <label for="cortex_color">Random colors</label>
+        <input type="checkbox" name="cortex_transparent" id="cortex_transparent">
+        <label for="cortex_transparent">Transparent</label>
+    </fieldset>
+    <fieldset data-role="controlgroup" data-type="horizontal">
+        <legend>Functional regions</legend>
+        <input type="checkbox" name="hcp_mtg" id="hcp_mtg">
+        <label for="hcp_mtg">HCP Avg MTG</label>
+        <input type="checkbox" name="avg_hfa" id="avg_hfa">
+        <label for="avg_hfa">Avg HFA</label>
+    </fieldset>
+    <fieldset data-role="controlgroup" data-type="horizontal">
+        <legend>Show prior stimulation results</legend>
+        <input type="checkbox" name="allstim_pos" id="allstim_pos">
+        <label for="allstim_pos">Positive</label>
+        <input type="checkbox" name="allstim_neg" id="allstim_neg">
+        <label for="allstim_neg">Negative</label>
+    </fieldset>
+    </div>
+    <div id="fusion_panel" data-role="collapsible">
+    <h4>MRI CT Axial</h4>
+    <div class="button-wrap">
+        <img id="slice" src="axial/axial0200.png">
+        <canvas id="depth_coords" width="512" height="512" style="margin-top: -512px;"></canvas>
+    </div>
+    <fieldset data-role="controlgroup" data-type="horizontal">
+        <legend>Click and drag on images or use buttons to scroll</legend>
+        <a id="slice_down" class="ui-btn ui-icon-arrow-l ui-btn-icon-left">Inferior</a>
+        <a id="slice_up" class="ui-btn ui-icon-arrow-r ui-btn-icon-right">Superior</a>
+    </fieldset>
+    </div>
+    <div id="cor_fusion_panel" data-role="collapsible">
+    <h4>MRI CT Coronal</h4>
+    <div class="button-wrap">
+        <img id="cor_slice" src="coronal/sagittal0300.png">
+        <canvas id="cor_depth_coords" width="514" height="512" style="margin-top: -512px;"></canvas>
+    </div>
+    <fieldset data-role="controlgroup" data-type="horizontal">
+        <legend>Click and drag on images or use buttons to scroll</legend>
+        <a id="slice_front" class="ui-btn ui-icon-arrow-l ui-btn-icon-left">Anterior</a>
+        <a id="slice_back" class="ui-btn ui-icon-arrow-r ui-btn-icon-right">Posterior</a>
+    </fieldset>
+    </div>
+    <div id="annotation_panel" data-role="collapsible">
+    <h4>Annotation</h4>
+    <div class="results" id="results" style="overflow:auto; max-height: 1000px;">
+    <ul id="list_annotate" class="list_annotate" data-role="listview" data-theme="a" data-inset="false">
+        <li>
+            <input type="text" name="text-basic" id="text-basic" value="Enter label name">
+            <div data-role="controlgroup" data-type="horizontal" data-mini="true" style="float:right; margin: 0 0 0 0;" data-name="Seizure">
+                <a href="#" id="new_annotate" data-name="new" class="ui-btn ui-corner-all">New</a>
+                <a href="#" id="save_annotate" data-name="save" class="ui-btn ui-corner-all">Save</a>
+                <!--<a href="#" id="reports_annotate" data-name="save" class="ui-btn ui-corner-all">Load reports</a>-->
+                <a href="#" id="load_annotate" data-name="load" class="ui-btn ui-corner-all">Load remote</a>
+                <a href="#" id="load_local" data-name="load_local" class="ui-btn ui-corner-all">Load local</a>
+                <a href="#" id="play_annotate" data-name="play" class="ui-btn ui-corner-all">Play</a>            
+                <input type="file" id="files" name="files[]" multiple style="position:absolute; top:-100px;"/>
+                <output id="list"></output>
+            </div>
+        </li>
+        <li id="item-1">
+            <h2 id = "item-1-label" data-name="item-1-label" style="float:left; display:inline;">Item-1-label</h2>
+            <button class="jscolor {valueElement:null, value:'66ccff'}" style="width:25px; height:36px; margin: 0 0 0 -0; float:right;"></button>
+            <fieldset data-role="controlgroup" data-type="horizontal" data-mini="true" style="float:right; margin: 0 10px 0 0;">
+                <input name = "eye" type="checkbox" name="eye" id = "item-1-eye" checked>
+                <label for="item-1-eye"><span class="ui-corner-all ui-icon-eye ui-btn-icon-notext"></span></label>
+                <input name = "edit" type="checkbox" name="edit" id="item-1-edit">
+                <label for="item-1-edit"><span class="ui-corner-all ui-icon-edit ui-btn-icon-notext"></span></label>
+            </fieldset>
+        </li>
+        <li id="item-2">
+            <h2 id = "item-2-label" data-name="item-2-label" style="float:left; display:inline;">Item-2-label</h2>
+            <button class="jscolor {valueElement:null, value:'66ccff'}" style="width:25px; height:36px; margin: 0 0 0 -0; float:right;"></button>
+            <fieldset data-role="controlgroup" data-type="horizontal" data-mini="true" style="float:right; margin: 0 10px 0 0;">
+                <input name = "eye" type="checkbox" name="eye" id = "item-2-eye" checked>
+                <label for="item-2-eye"><span class="ui-corner-all ui-icon-eye ui-btn-icon-notext"></span></label>
+                <input name = "edit" type="checkbox" name="edit" id="item-2-edit">
+                <label for="item-2-edit"><span class="ui-corner-all ui-icon-edit ui-btn-icon-notext"></span></label>
+            </fieldset>
+        </li>
+        <li id="item-3">
+            <h2 id = "item-3-label" data-name="item-3-label" style="float:left; display:inline;">Item-3-label</h2>
+            <button class="jscolor {valueElement:null, value:'66ccff'}" style="width:25px; height:36px; margin: 0 0 0 -0; float:right;"></button>
+            <fieldset data-role="controlgroup" data-type="horizontal" data-mini="true" style="float:right; margin: 0 10px 0 0;">
+                <input name = "eye" type="checkbox" name="eye" id = "item-3-eye" checked>
+                <label for="item-3-eye"><span class="ui-corner-all ui-icon-eye ui-btn-icon-notext"></span></label>
+                <input name = "edit" type="checkbox" name="edit" id="item-3-edit">
+                <label for="item-3-edit"><span class="ui-corner-all ui-icon-edit ui-btn-icon-notext"></span></label>
+            </fieldset>
+        </li>
+        <li id="item-4">
+            <h2 id = "item-4-label" data-name="item-4-label" style="float:left; display:inline;">Item-4-label</h2>
+            <button class="jscolor {valueElement:null, value:'66ccff'}" style="width:25px; height:36px; margin: 0 0 0 -0; float:right;"></button>
+            <fieldset data-role="controlgroup" data-type="horizontal" data-mini="true" style="float:right; margin: 0 10px 0 0;">
+                <input name = "eye" type="checkbox" name="eye" id = "item-4-eye" checked>
+                <label for="item-4-eye"><span class="ui-corner-all ui-icon-eye ui-btn-icon-notext"></span></label>
+                <input name = "edit" type="checkbox" name="edit" id="item-4-edit">
+                <label for="item-4-edit"><span class="ui-corner-all ui-icon-edit ui-btn-icon-notext"></span></label>
+            </fieldset>
+        </li>
+        <li id="item-5">
+            <h2 id = "item-5-label" data-name="item-5-label" style="float:left; display:inline;">Item-5-label</h2>
+            <button class="jscolor {valueElement:null, value:'66ccff'}" style="width:25px; height:36px; margin: 0 0 0 -0; float:right;"></button>
+            <fieldset data-role="controlgroup" data-type="horizontal" data-mini="true" style="float:right; margin: 0 10px 0 0;">
+                <input name = "eye" type="checkbox" name="eye" id = "item-5-eye" checked>
+                <label for="item-5-eye"><span class="ui-corner-all ui-icon-eye ui-btn-icon-notext"></span></label>
+                <input name = "edit" type="checkbox" name="edit" id="item-5-edit">
+                <label for="item-5-edit"><span class="ui-corner-all ui-icon-edit ui-btn-icon-notext"></span></label>
+            </fieldset>
+        </li>
+        <li id="item-6">
+            <h2 id = "item-6-label" data-name="item-6-label" style="float:left; display:inline;">Item-6-label</h2>
+            <button class="jscolor {valueElement:null, value:'66ccff'}" style="width:25px; height:36px; margin: 0 0 0 -0; float:right;"></button>
+            <fieldset data-role="controlgroup" data-type="horizontal" data-mini="true" style="float:right; margin: 0 10px 0 0;">
+                <input name = "eye" type="checkbox" name="eye" id = "item-6-eye" checked>
+                <label for="item-6-eye"><span class="ui-corner-all ui-icon-eye ui-btn-icon-notext"></span></label>
+                <input name = "edit" type="checkbox" name="edit" id="item-6-edit">
+                <label for="item-6-edit"><span class="ui-corner-all ui-icon-edit ui-btn-icon-notext"></span></label>
+            </fieldset>
+        </li>    
+    </ul>
+    </div>
+   </div>
+</div>
+
+<div id="show_options" class="ui-btn" style="position: absolute; z-index: 1; right: 0.6%; bottom: 0px;">Options</div>
+
+<div id="ecog_container" class="ui-btn" style="position: absolute; z-index: 1; left: 0.6%; bottom: 0px; width:275px;">Contacts/Locations</div>
+
+</body>
+
+</html>

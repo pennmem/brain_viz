@@ -14,8 +14,14 @@ dependencies:
 - xz=5.2.2=1
 - zlib=1.2.8=3
 - pip:
+  - certifi==2017.4.17
+  - chardet==3.0.4
   - django==1.11.2
   - docutils==0.13.1
+  - gunicorn==19.7.1
+  - idna==2.5
   - luigi==2.6.2
   - pytz==2017.2
+  - requests==2.18.1
+  - urllib3==1.21.1
 

@@ -1,0 +1,28 @@
+[info]
+author = Joel Stein
+name = iEEG_surface
+title = Surface Electrode Visualization
+icon = 
+
+[paths]
+assets_dirs = apps_dev/iEEG_surface;
+blend_dirs = apps_dev/iEEG_surface;
+blender_exec = blender
+build_dir = apps_dev/iEEG_surface
+deploy_dir = 
+
+[compile]
+apps = 
+css_ignore = 
+engine_type = update
+js_ignore = 
+optimization = simple
+use_physics = 
+use_smaa_textures = 
+version = 
+
+[deploy]
+assets_path_dest = assets
+assets_path_prefix = assets
+override = 
+
