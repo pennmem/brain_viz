@@ -25,18 +25,20 @@ cp $BASEDIR/label/rh.aparc.annot $CORTEXDIR/
 mris_convert $CORTEXDIR/lh.pial $CORTEXDIR/lh.pial.asc
 mris_convert $CORTEXDIR/rh.pial $CORTEXDIR/rh.pial.asc
 
+# This is just renaming. Can we just do this in the step above?
 mv $CORTEXDIR/lh.pial.asc $CORTEXDIR/lh.pial.srf
 mv $CORTEXDIR/rh.pial.asc $CORTEXDIR/rh.pial.srf
 
 srf2obj $CORTEXDIR/lh.pial.srf > $CORTEXDIR/lh.pial.obj
 srf2obj $CORTEXDIR/rh.pial.srf > $CORTEXDIR/rh.pial.obj
 
+## TODO: Pull this into it's own task within the pipeline
 cd $CORTEXDIR/
 matlab -r "annot2dpv lh.aparc.annot lh.aparc.annot.dpv;annot2dpv rh.aparc.annot rh.aparc.annot.dpv;splitsrf lh.pial.srf lh.aparc.annot.dpv lh.pial_roi;splitsrf rh.pial.srf rh.aparc.annot.dpv rh.pial_roi;exit;"
 
 cd $CODEDIR
 
-# Rename srf files to something human readable
+# Rename srf files to something human readable. TODO: Do this in a for loop so it takes up less space
 srf2obj $CORTEXDIR/lh.pial_roi.0001.srf > $CORTEXDIR/lh.Unmeasured.obj
 srf2obj $CORTEXDIR/lh.pial_roi.0002.srf > $CORTEXDIR/lh.BanksSuperiorTemporal.obj
 srf2obj $CORTEXDIR/lh.pial_roi.0003.srf > $CORTEXDIR/lh.CACingulate.obj
@@ -108,7 +110,7 @@ srf2obj $CORTEXDIR/rh.pial_roi.0033.srf > $CORTEXDIR/rh.TemporalPole.obj
 srf2obj $CORTEXDIR/rh.pial_roi.0034.srf > $CORTEXDIR/rh.TransverseTemporal.obj
 srf2obj $CORTEXDIR/rh.pial_roi.0035.srf > $CORTEXDIR/rh.Insula.obj
 
-# Generate coordinatees for blender
+# Generate coordinatees for blender. TODO: Pull this into it's own task within luigi
 cd $CONTACTDIR/
 matlab -r "coords4blender('$SUBJECT', '$CONTACTDIR'); exit;"
 
@@ -122,16 +124,13 @@ cp  iEEG_surface_template/* $OUTDIR/
 cp $CONTACTDIR/monopolar_names.txt $OUTDIR/
 cp $CONTACTDIR/bipolar_names.txt $OUTDIR/
 cp $CONTACTDIR/monopolar_start_names.txt $OUTDIR/
+cp /data10/RAM/subjects/$SUBJECT/tal/VOX_coords_mother_dykstra.txt $OUTDIR/
+cp /data10/RAM/subjects/$SUBJECT/tal/VOX_coords_mother_dykstra_bipolar.txt $OUTDIR/
+
 
 # Generate the blender scene .blend and .json files
 # This is not in brain_viz.py because it needs to be run with the python runtime
 # that is bundled with blender, otherwise there is no access to the bpy library
 ~/blender/blender -b empty.blend -b --python create_scene.py -- $SUBJECT $SUBJECT_NUM $CORTEXDIR $CONTACTDIR $OUTDIR
 
-# Copy over coordinates
-## TODO: Remove this hardcoding
-cp /data10/RAM/subjects/$SUBJECT/tal/VOX_coords_mother_dykstra.txt $OUTDIR/
-cp /data10/RAM/subjects/$SUBJECT/tal/VOX_coords_mother_dykstra_bipolar.txt $OUTDIR/
-
-
-exit
+exit 0
