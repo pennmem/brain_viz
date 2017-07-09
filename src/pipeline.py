@@ -36,9 +36,6 @@ class CanStart(SubjectConfig, luigi.Task):
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/rh.pial"),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/lh.aparc.annot"),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot"),
-                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/monopolar_names.txt"),
-                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/bipolar_names.txt"),
-                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/monopolar_start_names.txt"),
                 luigi.LocalTarget(self.TAL.format(self.SUBJECT) + "/VOX_coords_mother_dykstra.txt"),
                 luigi.LocalTarget(self.TAL.format(self.SUBJECT) + "/VOX_coords_mother_dykstra_bipolar.txt")]
 
@@ -50,7 +47,7 @@ class FreesurferToWavefront(SubjectConfig, ExternalProgramTask):
         return CanStart(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
     def program_args(self):
-        return [os.path.dirname(os.path.abspath('__file__')) + "/freesurfer2wavefront.sh",
+        return ["./freesurfer2wavefront.sh",
                 self.BASE.format(self.SUBJECT),
                 self.CORTEX.format(self.SUBJECT)]
 
@@ -63,57 +60,74 @@ class SplitCorticalSurface(SubjectConfig, ExternalProgramTask):
     """ Splits the left/right hemisphere wavefront objects into independent cortical surfaces """
 
     def requires(self):
-        return FreesurferToWavefront(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.OUTPUT)
+        return FreesurferToWavefront(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
     def program_args(self):
-        # Need to change directory into cortexdir
-        matlab_command = "annot2dpv lh.aparc.annot lh.aparc.annot.dpv;\
-                          annot2dpv rh.aparc.annot rh.aparc.annot.dpv;\
-                          splitsrf lh.pial.srf lh.aparc.annot.dpv lh.pial_roi;\
-                          splitsrf rh.pial.srf rh.aparc.annot.dpv rh.pial_roi;\
-                          exit;"
-        return ["maltab", "-r", matlab_command]
+        return ["./split_cortical.sh",
+                self.CORTEX.format(self.SUBJECT)]
 
     def output(self):
         # 70 files are output, but just look for the last .obj file that should have been created
-        return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/lh.pial_roi_0035.srf"),
-                luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/rh.pial_roi_0035.srf")]
+        return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/rh.Insula.obj"),
+                luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/lh.Insula.obj")]
 
 
-class GenElectrodeCordinatesAndNames(SubjectConfig, ExternalProgramTask):
+class GenElectrodeCoordinatesAndNames(SubjectConfig, ExternalProgramTask):
     """ Creates coordinate files and electrode names for blender """
-    pass
+    def requires(self):
+        return SplitCorticalSurface(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
-class GenBlenderScene(SubjectConfig, ExternalProgramTask):
-    """ Generates the blender scene from wavefront object and coordinate files """
-    pass
+    def program_args(self):
+        return ["./create_coordinates.sh",
+                self.SUBJECT,
+                self.CONTACT.format(self.SUBJECT)]
+
+    def output(self):
+        return [luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/monopolar_start_blender.txt"),
+                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/monopolar_blender.txt"),
+                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/bipolar_blender.txt"),
+                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/monopolar_start_names.txt"),
+                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/monopolar_names.txt"),
+                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/bipolar_names.txt")]
+
 
 class BuildBlenderSite(SubjectConfig, ExternalProgramTask):
     """ Creates a single directory site for displaying web-based blender scene """
-    pass
-
-class GenBrainVizData(SubjectConfig, ExternalProgramTask):
-    """ Creates sub-director for housing output files for the brain visualization """
-
     def requires(self):
-        return CanStart(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.OUTPUT)
+        GenElectrodeCoordinatesAndNames(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+
+    def program_args(self):
+        return ["./build_template_site.sh",
+                self.CONTACT.format(self.SUBJECT),
+                self.TAL.format(self.SUBJECT),
+                self.OUTPUT.format(self.SUBJECT)]
+
+    def output(self):
+        # More files are copied over, so this is a lazy check of output
+        return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT) + "/monopolar_names.txt")]
+
+
+class GenBlenderScene(SubjectConfig, ExternalProgramTask):
+    """ Generates the blender scene from wavefront object and coordinate files """
+    def requires(self):
+        return BuildBlenderSite(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
     def program_args(self):
         subject_num = extract_subject_num(self.SUBJECT)
-        return ["./convert.sh",
+        return ["/home1/zduey/blender/blender",
+                "-b",
+                "/home1/zduey/brain_viz/iEEG_surface_template/empty.blend",
+                "-b",
+                "--python",
+                "create_scene.py",
+                "--",
                 self.SUBJECT,
                 subject_num,
-                self.BASE.format(self.SUBJECT),
                 self.CORTEX.format(self.SUBJECT),
                 self.CONTACT.format(self.SUBJECT),
-                self.OUTPUT.format(subject_num)]
+                self.OUTPUT.format(self.SUBJECT)]
 
     def output(self):
-        subject_num = extract_subject_num(self.SUBJECT)
-        return [luigi.LocalTarget(self.OUTPUT.format(subject_num) + "/iEEG_surface.blend")]
-
-class BrainVizPipeline(SubjectConfig, luigi.WrapperTask):
-    " Luigi wrapper task for running a single-SUBJECT brain viz pipeline """
-
-    def requires(self):
-        yield GenBrainVizData(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.OUTPUT)
+        return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT) + "/iEEG_surface.blend"),
+                luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT) + "/iEEG_surface.bin"),
+                luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT) + "/iEEG_surface.json")]
