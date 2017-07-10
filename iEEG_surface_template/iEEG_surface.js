@@ -14,7 +14,7 @@ var m_transform = require("transform");
 var m_mat       = require("material");
 var m_textures = require("textures");
 
-    var subject = "291_1";
+    var subject = "291";
     var picked;
     var picked_before = "empty";
     var contacts_CT;
@@ -28,12 +28,7 @@ var m_textures = require("textures");
     var annotate_name;
     var annotate_color = [1,1,1];
     var annotate_show = true;
-    var annotate_level = 0;
-    var topLabel;
-    var noLabel;
     var annotate_contact;
-    var edit_contact;
-    var remove_annotate;
     var cortex_white = true;
     var cortex_color = [];
     var cortex_opaque = true;
@@ -44,12 +39,10 @@ var m_textures = require("textures");
     var resize_fusion;
     var resize_options;
     var add_annotate = '';
-    var first_slice = 93;
-    var last_slice = 240;
+    var first_slice = 94;
+    var last_slice = 238;
     var cor_first_slice = 76;
-    var cor_last_slice = 414
-    var propagate_jscolor = true;
-    var display_name;
+    var cor_last_slice = 418;
 
 /**
  * export the method to initialize the app (called at the bottom of this file)
@@ -148,84 +141,6 @@ function init_cb(canvas_elem, success) {
         }
     });
     
-    function getAllIndexes(arr, val) {
-        var indexes = [], i;
-        for(i = 0; i < arr.length; i++) {
-            if (arr[i] === val) {
-                indexes.push(i);
-            }
-        }
-        return indexes;
-    }
-    
-    function topLabel(a) {
-        var array = getAllIndexes(a.annotation_show, true);
-        var max = a.annotation_level[array[0]];
-        var index = 0;
-        for (var i = 1; i < array.length; i++) {
-            if (a.annotation_level[array[i]] > max) {
-                max = a.annotation_level[array[i]];
-                index = array[i];
-            }
-        }
-        m_mat.set_diffuse_color(a, "Red", a.annotation_color[index]);
-        m_mat.set_diffuse_color(a, "Blue", a.annotation_color[index]);
-        m_mat.set_diffuse_color(a, "Green", a.annotation_color[index]);
-    }
-    
-    function noLabel(a) {
-        m_mat.set_diffuse_color(a, "Red", [1,0,0]);
-        m_mat.set_diffuse_color(a, "Blue", [0,0,1]);
-        m_mat.set_diffuse_color(a, "Green", [0,1,0]);
-    }
-    
-    annotate_contact = function(a, b, c, d, e) {
-        m_mat.set_diffuse_color(a, "Red", c);
-        m_mat.set_diffuse_color(a, "Blue", c);
-        m_mat.set_diffuse_color(a, "Green", c);
-        a.annotation_name.push(b);
-        a.annotation_color.push(c);
-        a.annotation_show.push(true);
-        a.annotation_onoff.push(d);
-        a.annotation_tstat.push(e);
-        if (a.annotation_level.length === 0) {a.annotation_level.push(1);}
-        else {
-            var max = a.annotation_level[0];
-            for (var i = 1; i < a.annotation_level.length; i++) {
-                if (a.annotation_level[i] > max) {
-                    max = a.annotation_level[i];
-                }
-            }
-            a.annotation_level.push(max + 1);
-        }
-    };
-
-    edit_contact = function(a, b, c, d) {
-        m_mat.set_diffuse_color(a, "Red", c);
-        m_mat.set_diffuse_color(a, "Blue", c);
-        m_mat.set_diffuse_color(a, "Blue", c);
-        var index = a.annotation_name.indexOf(b);
-        a.annotation_color[index] = c;
-        a.annotation_show[index] = true;
-        a.annotation_onoff[index] = d;
-    };
-    
-    remove_annotate = function(a, b) {
-        var index = a.annotation_name.indexOf(b);
-        a.annotation_name.splice(index,1);
-        a.annotation_color.splice(index,1);
-        a.annotation_show.splice(index,1);
-        a.annotation_onoff.splice(index,1);
-        a.annotation_tstat.splice(index,1);
-        a.annotation_level.splice(index,1);
-        if (a.annotation_name.length < 0 || a.annotation_show.indexOf(true) < 0) {
-            noLabel(a);   
-        }
-        else {
-            topLabel(a);
-        }
-    };
-    
     canvas = document.getElementById("depth_coords");
     cor_canvas = document.getElementById("cor_depth_coords");
     //Highlight contacts or regions on hover over and display name
@@ -233,46 +148,35 @@ function init_cb(canvas_elem, success) {
         var x = m_mouse.get_coords_x(e);
         var y = m_mouse.get_coords_y(e);
         picked = m_scenes.pick_object(x, y);
-        if (picked !== null) {
+        if (picked != null) {
             if (picked != picked_before) {
-                //Set previously hovered over contacts back to correct color
                 if (picked_before != "empty") {
-                    if ("annotation_show" in picked_before && picked_before.annotation_show.indexOf(true) >=0) {
-                        //Sets previously hovered over contact back to label color
-                        topLabel(picked_before);
+                    if (picked_before.annotated) {
+                        m_mat.set_diffuse_color(picked_before, "Red", picked_before.annotate_color);
+                        m_mat.set_diffuse_color(picked_before, "Blue", picked_before.annotate_color);
+                        m_mat.set_diffuse_color(picked_before, "Green", picked_before.annotate_color);
                     }
                     else {
                         //Sets previously hovered over contact back to original color
-                        noLabel(picked_before);
+                        m_mat.set_diffuse_color(picked_before, "Red", [1,0,0]);
+                        m_mat.set_diffuse_color(picked_before, "Blue", [0,0,1]);
+                        m_mat.set_diffuse_color(picked_before, "Green", [0,1,0]);
                     }
                 }
             }
-//            //Highlights newly hovered over contacts
-//            m_mat.set_diffuse_color(picked, "Red", [1,0.8,0]);
-//            m_mat.set_diffuse_color(picked, "Blue", [1,0.8,0]);
-//            m_mat.set_diffuse_color(picked, "Green", [1,0.8,0]);
-//            picked_before = picked;
-//            if (picked.annotation_name) {add_annotate = " - " + picked.annotation_name;} else {add_annotate = "";}
-//            picked_name = m_scenes.get_object_name(picked) + add_annotate;
-//            document.getElementById('ecog_container').innerHTML = picked_name;
             //Highlights newly hovered over contacts
-                m_mat.set_diffuse_color(picked, "Red", [1,0.8,0]);
-                m_mat.set_diffuse_color(picked, "Blue", [1,0.8,0]);
-                m_mat.set_diffuse_color(picked, "Green", [1,0.8,0]);
-                picked_before = picked;
-                if (picked.annotation_name) {add_annotate = "   " + picked.annotation_name;} else {add_annotate = "";}
-                if (picked.annotation_tstat && picked.annotation_tstat.length > 0) {add_annotate = add_annotate + "  T-stat: " + picked.annotation_tstat;}
-                picked_name = m_scenes.get_object_name(picked);
-                display_name = m_scenes.get_object_name(picked) + add_annotate;
-                document.getElementById('ecog_container').innerHTML = display_name;
-                console.log(picked_name);
-
+            if (picked.annotate_name) {add_annotate = " - " + picked.annotate_name;} else {add_annotate = "";}
+            picked_name = m_scenes.get_object_name(picked);
+            m_mat.set_diffuse_color(picked, "Red", [1,0.8,0]);
+            m_mat.set_diffuse_color(picked, "Blue", [1,0.8,0]);
+            m_mat.set_diffuse_color(picked, "Green", [1,0.8,0]);
+            document.getElementById('ecog_container').innerHTML = picked_name + add_annotate;
+            picked_before = picked;
         }
         //Highlight depth if depth_viewer loaded
         if (!options_hidden) {
             for(var i = 0; i < contacts_CT.length; i++) {
                 if(contacts_CT[i][0] == picked_name || "o" + contacts_CT[i][0] == picked_name) {
-                        console.log("show contact")
                         slicenum = "00" + contacts_CT[i][3];
                         slicenum = slicenum.substring(slicenum.length-4, slicenum.length);
                         newslice = "axial/axial" + slicenum + ".png";
@@ -307,23 +211,25 @@ function init_cb(canvas_elem, success) {
         
     }
     
-//    annotate_contact = function(a, b, c, d) {
-//        m_mat.set_diffuse_color(a, "Red", c);
-//        m_mat.set_diffuse_color(a, "Blue", c);
-//        a.annotated = true;
-//        a.annotate_name = b;
-//        a.annotate_color = c;
-//        a.annotate_show = true;
-//        a.annotate_onoff = d;
-//    };
+    annotate_contact = function(a, b, c, d) {
+        m_mat.set_diffuse_color(a, "Red", c);
+        m_mat.set_diffuse_color(a, "Blue", c);
+        a.annotated = true;
+        a.annotate_name = b;
+        a.annotate_color = c;
+        a.annotate_show = true;
+        a.annotate_onoff = d;
+    };
     
     function mouse_down() {
         if (annotating) {
             if(picked) {
-                if ("annotation_name" in picked && picked.annotation_name.indexOf(annotate_name) > -1) {
-                    remove_annotate(picked, annotate_name);
+                if(picked.annotated) {
+                    m_mat.set_diffuse_color(picked_before, "Red", [1,0,0]);
+                    m_mat.set_diffuse_color(picked_before, "Blue", [0,0,1]);
+                    picked.annotated = false;
                 }
-                else{
+                else {
                     annotate_contact(picked, annotate_name, annotate_color, 0);
                 }
             }
@@ -443,61 +349,18 @@ function load_cb(data_id) {
                             bipolars = bipolars.split(",");
                             contacts = contacts.concat(bipolars);
                             for (i = 0; i < contacts.length; i++) {
-                                m_constraints.append_track(m_scenes.get_object_by_name(contacts[i]), m_scenes.get_object_by_name("Empty"));
-                                m_scenes.get_object_by_name(contacts[i]).annotation_name = [];
-                                m_scenes.get_object_by_name(contacts[i]).annotation_color = [];
-                                m_scenes.get_object_by_name(contacts[i]).annotation_show = [];
-                                m_scenes.get_object_by_name(contacts[i]).annotation_onoff = [];
-                                m_scenes.get_object_by_name(contacts[i]).annotation_tstat = [];
-                                m_scenes.get_object_by_name(contacts[i]).annotation_level = [];
+                                m_constraints.append_track(m_scenes.get_object_by_name(contacts[i]), m_scenes.get_object_by_name('Empty'), 'Z','X');
                             }
                             // Hide the contacts at the original starting coordinates
                             for (i = 0; i < monopolars_start.length; i++) {
                                 m_scenes.hide_object(m_scenes.get_object_by_name(monopolars_start[i]), false);
                             }
-                            m_scenes.hide_object(m_scenes.get_object_by_name('hcp_mtg'), false);
-                            m_scenes.hide_object(m_scenes.get_object_by_name('avg_hfa'), false);
-                            m_scenes.hide_object(m_scenes.get_object_by_name('allstim_pos'), false);
-                            m_scenes.hide_object(m_scenes.get_object_by_name('allstim_neg'), false);
                         }
                     });
                 }
             }); 
         }
-    });
-    
-    function getAllIndexes(arr, val) {
-        var indexes = [], i;
-        for(i = 0; i < arr.length; i++) {
-            if (arr[i] === val) {
-                indexes.push(i);
-            }
-        }
-        return indexes;
-    }
-    
-    function topLabel(a) {
-        var array = getAllIndexes(a.annotation_show, true);
-        var max = a.annotation_level[array[0]];
-        var index = array[0];
-        for (var i = 0; i < array.length; i++) {
-            if (a.annotation_level[array[i]] > max) {
-                max = a.annotation_level[array[i]];
-                index = array[i];
-            }
-        }
-        console.log(array);
-        console.log(index);
-        m_mat.set_diffuse_color(a, "Red", a.annotation_color[index]);
-        m_mat.set_diffuse_color(a, "Blue", a.annotation_color[index]);
-        m_mat.set_diffuse_color(a, "Green", a.annotation_color[index]);
-    }
-    
-    function noLabel(a) {
-        m_mat.set_diffuse_color(a, "Red", [1,0,0]);
-        m_mat.set_diffuse_color(a, "Blue", [0,0,1]);
-        m_mat.set_diffuse_color(a, "Green", [0,1,0]);
-    }
+    });   
     
     // Button functions to show or hide hemispheres, cortex labels, transparency, monopolars, bipolars
     var left_hidden = false;
@@ -505,10 +368,6 @@ function load_cb(data_id) {
     var bipolars_hidden = false;
     var monopolars_hidden = false;
     var monopolars_start_hidden = true;
-    var allstim_pos_hidden = true;
-    var allstim_neg_hidden = true;
-    var hcp_mtg_hidden = true;
-    var avg_hfa_hidden = true;
     document.getElementById("cortex_left").onclick = function () {
         if (left_hidden == false) {
             m_scenes.hide_object(m_scenes.get_object_by_name('lh'), false);
@@ -526,24 +385,6 @@ function load_cb(data_id) {
             m_scenes.show_object(m_scenes.get_object_by_name('rh'), false);
         }
         right_hidden = !right_hidden;
-    };
-    document.getElementById("hcp_mtg").onclick = function () {
-        if (hcp_mtg_hidden == false) {
-            m_scenes.hide_object(m_scenes.get_object_by_name('hcp_mtg'), false);
-        }
-        else {
-            m_scenes.show_object(m_scenes.get_object_by_name('hcp_mtg'), false);
-        }
-        hcp_mtg_hidden = !hcp_mtg_hidden;
-    };
-    document.getElementById("avg_hfa").onclick = function () {
-        if (avg_hfa_hidden == false) {
-            m_scenes.hide_object(m_scenes.get_object_by_name('avg_hfa'), false);
-        }
-        else {
-            m_scenes.show_object(m_scenes.get_object_by_name('avg_hfa'), false);
-        }
-        avg_hfa_hidden = !avg_hfa_hidden;
     };
     var lh_test = new RegExp("lh.");
     var rh_test = new RegExp("rh.");
@@ -568,23 +409,14 @@ function load_cb(data_id) {
     document.getElementById("cortex_transparent").onclick = function () {
         var all_objs = m_scenes.get_all_objects("ALL", data_id)
         if (cortex_opaque) { opacity = 0.5; } else { opacity = 1; }
-        cortex_opaque = !cortex_opaque;
+        cortex_opaque = !cortex_opaque
         for (i = 0; i < all_objs.length; i++) {
             if (lh_test.test(m_scenes.get_object_name(all_objs[i])) || rh_test.test(m_scenes.get_object_name(all_objs[i]))) {
                 cortex_color = m_mat.get_diffuse_color(all_objs[i], "White");
-                cortex_color[3] = opacity;
+                cortex_color[3] = opacity
                 m_mat.set_diffuse_color(all_objs[i], "White", cortex_color);
             }
         }
-        cortex_color = m_mat.get_diffuse_color(m_scenes.get_object_by_name('hcp_mtg'), "Material.001");
-        cortex_color[3] = opacity;
-        m_mat.set_diffuse_color(m_scenes.get_object_by_name('hcp_mtg'), "Material.001", cortex_color);
-        cortex_color = m_mat.get_diffuse_color(m_scenes.get_object_by_name('hcp_mtg'), "Material.002");
-        cortex_color[3] = opacity;
-        m_mat.set_diffuse_color(m_scenes.get_object_by_name('hcp_mtg'), "Material.002", cortex_color);
-        cortex_color = m_mat.get_diffuse_color(m_scenes.get_object_by_name('avg_hfa'), "Material");
-        cortex_color[3] = opacity;
-        m_mat.set_diffuse_color(m_scenes.get_object_by_name('avg_hfa'), "Material", cortex_color);
     };
     document.getElementById("monopolars").onclick = function () {
         for (i = 0; i < monopolars.length; i++) {
@@ -618,24 +450,6 @@ function load_cb(data_id) {
             }   
         }
         monopolars_start_hidden = !monopolars_start_hidden;
-    };
-    document.getElementById("allstim_pos").onclick = function () {
-        if (allstim_pos_hidden == false) {
-            m_scenes.hide_object(m_scenes.get_object_by_name('allstim_pos'), false);
-        }
-        else {
-            m_scenes.show_object(m_scenes.get_object_by_name('allstim_pos'), false);
-        }
-        allstim_pos_hidden = !allstim_pos_hidden;
-    };
-    document.getElementById("allstim_neg").onclick = function () {
-        if (allstim_neg_hidden == false) {
-            m_scenes.hide_object(m_scenes.get_object_by_name('allstim_neg'), false);
-        }
-        else {
-            m_scenes.show_object(m_scenes.get_object_by_name('allstim_neg'), false);
-        }
-        allstim_neg_hidden = !allstim_neg_hidden;
     };
     document.getElementById("slice_up").onclick = function () {
         canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
@@ -678,27 +492,18 @@ function load_cb(data_id) {
         document.getElementById("cor_slice").src=cor_newslice;
     };
     // Change contact colors for a given label
-//    function changeColor(label, color) {
-//        var parts = color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
-//        color = [parts[1]/255, parts[2]/255, parts[3]/255];
-//        console.log(color);
-    function changeColor(label, c) {
-        var parts = c.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
-        c = [parts[1]/255, parts[2]/255, parts[3]/255];
+    function changeColor(label, color) {
+        var parts = color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+        color = [parts[1]/255, parts[2]/255, parts[3]/255];
+        console.log(color);
         var all_objs = m_scenes.get_all_objects("ALL", data_id);
             for (i = 0; i < all_objs.length; i++) {
-//                if (all_objs[i].annotate_name == label) {
-//                        all_objs[i].annotate_color = color;
-//                        m_mat.set_diffuse_color(all_objs[i], "Red", color);
-//                        m_mat.set_diffuse_color(all_objs[i], "Blue", color);
-//                }
-//                all_objs[i].annotate_show = true;
-                if ("annotation_name" in all_objs[i] && all_objs[i].annotation_name.indexOf(label) > -1) {
-                    all_objs[i].annotation_color[all_objs[i].annotation_name.indexOf(label)] = c;
-                    m_mat.set_diffuse_color(all_objs[i], "Red", c);
-                    m_mat.set_diffuse_color(all_objs[i], "Blue", c);
-                    all_objs[i].annotation_show[all_objs[i].annotation_name.indexOf(label)] = true;
+                if (all_objs[i].annotate_name == label) {
+                        all_objs[i].annotate_color = color;
+                        m_mat.set_diffuse_color(all_objs[i], "Red", color);
+                        m_mat.set_diffuse_color(all_objs[i], "Blue", color);
                 }
+                all_objs[i].annotate_show = true;
             }      
     }
     
@@ -708,30 +513,23 @@ function load_cb(data_id) {
             // create an observer instance
         var observer = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
-//               changeColor(mutation.target.previousSibling.previousSibling.textContent, mutation.target.style.backgroundColor);
-                if (propagate_jscolor === true) {
-                    changeColor(mutation.target.previousSibling.previousSibling.textContent, mutation.target.style.backgroundColor);
-                }
+                changeColor(mutation.target.previousSibling.previousSibling.textContent, mutation.target.style.backgroundColor);
             });
         });
         observer.observe(target[i], { attributes : true, attributeFilter : ['style'] });
     }
 
     // Turn contact label color on or off by passing contact object
-//    var toggleLabel = function (contact) {
-//        if (contact.annotate_show) {
-//            m_mat.set_diffuse_color(contact, "Red", [1,0,0]);
-//            m_mat.set_diffuse_color(contact, "Blue", [0,0,1]);
-//        }
-//        else {
-//             m_mat.set_diffuse_color(contact, "Red", contact.annotate_color);
-//             m_mat.set_diffuse_color(contact, "Blue", contact.annotate_color);
-//        }
-//        contact.annotate_show = !contact.annotate_show;
-    var toggleLabel = function (contact, index) {
-        contact.annotation_show[index] = !contact.annotation_show[index];
-        if(contact.annotation_show.indexOf(true) < 0) {noLabel(contact);}
-        else {topLabel(contact);};
+    var toggleLabel = function (contact) {
+        if (contact.annotate_show) {
+            m_mat.set_diffuse_color(contact, "Red", [1,0,0]);
+            m_mat.set_diffuse_color(contact, "Blue", [0,0,1]);
+        }
+        else {
+             m_mat.set_diffuse_color(contact, "Red", contact.annotate_color);
+             m_mat.set_diffuse_color(contact, "Blue", contact.annotate_color);
+        }
+        contact.annotate_show = !contact.annotate_show;
     };
     
     // Provide click functions for eye and edit buttons in annotate list items
@@ -741,10 +539,8 @@ function load_cb(data_id) {
             annotate_name = $(this).parent().parent().parent().prev().prev().text();
             var all_objs = m_scenes.get_all_objects("ALL", data_id);
             for (i = 0; i < all_objs.length; i++) {
-//                if (all_objs[i].annotate_name == annotate_name) {
-//                    toggleLabel(all_objs[i]);
-                if ("annotation_name" in all_objs[i] && all_objs[i].annotation_name.indexOf(annotate_name) > -1) {
-                    toggleLabel(all_objs[i], all_objs[i].annotation_name.indexOf(annotate_name));
+                if (all_objs[i].annotate_name == annotate_name) {
+                    toggleLabel(all_objs[i]);
                 }
             }
         }
@@ -791,26 +587,26 @@ function load_cb(data_id) {
     };
     
     // Add unique annotations in to the annotation list
-//    var add_uniques = function(annotate) {
-//        var d = [];
-//        var unique = [];
-//        for (i=0; i < annotate.length; i++) {
-//            var item = [annotate[i][2]].concat(annotate[i][3]);
-//            console.log(item);
-//            var rep = item.toString();
-//            if (!d[rep]) {
-//               d[rep] = true;
-//                unique.push(item);
-//            }
-//        }
-//        for (i=0; i < unique.length; i++) {
-//            new_annotate(unique[i][0], [unique[i][1], unique[i][2], unique[i][3]]);
-//        }
-//    };
+    var add_uniques = function(annotate) {
+        var d = [];
+        var unique = [];
+        for (i=0; i < annotate.length; i++) {
+            var item = [annotate[i][2]].concat(annotate[i][3]);
+            console.log(item);
+            var rep = item.toString();
+            if (!d[rep]) {
+                d[rep] = true;
+                unique.push(item);
+            }
+        }
+        for (i=0; i < unique.length; i++) {
+            new_annotate(unique[i][0], [unique[i][1], unique[i][2], unique[i][3]]);
+        }
+    };
     
     // Load annotations from google doc
     document.getElementById("load_annotate").onmousedown = function () {
-//        var annotate = [];
+        var annotate = [];
         var spreadsheetID = "1Gqal9jyo21nRIk2GUSpoj9s8jXEx4EJGf76k-Vd3aEQ";
         var url = "https://spreadsheets.google.com/feeds/list/" + spreadsheetID + "/1/public/values?alt=json";
         $.getJSON(url, function(data) {
@@ -818,41 +614,11 @@ function load_cb(data_id) {
             $(entry).each(function(){
                 if (this.gsx$subject.$t == subject) {
                     annotate_color = [+this.gsx$colorr.$t, +this.gsx$colorg.$t, +this.gsx$colorb.$t];
-//                    annotate.push([this.gsx$subject.$t, this.gsx$contact.$t, this.gsx$label.$t, annotate_color, +this.gsx$onoff.$t]);
-//                    annotate_contact(m_scenes.get_object_by_name(this.gsx$contact.$t), this.gsx$label.$t, annotate_color, +this.gsx$onoff.$t);
-                    annotate.push([this.gsx$subject.$t, this.gsx$contact.$t, this.gsx$label.$t, annotate_color, +this.gsx$onoff.$t, +this.gsx$tstat.$t]);
-                    annotate_contact(m_scenes.get_object_by_name(this.gsx$contact.$t), this.gsx$label.$t, annotate_color, +this.gsx$onoff.$t, +this.gsx$tstat.$t);
+                    annotate.push([this.gsx$subject.$t, this.gsx$contact.$t, this.gsx$label.$t, annotate_color, +this.gsx$onoff.$t]);
+                    annotate_contact(m_scenes.get_object_by_name(this.gsx$contact.$t), this.gsx$label.$t, annotate_color, +this.gsx$onoff.$t);
                 }
             });
-//            add_uniques(annotate);
-            var d = [];
-            var unique_label = [];
-            var unique_labelcolors = [];
-            for (i=0; i < annotate.length; i++) {
-                var item = [annotate[i][2]].concat(annotate[i][3]);
-                var item_label = item[0].toString();
-                var item_labelcolors = item.toString();
-                if (!d[item_label]) {
-                    d[item_label] = true;
-                    unique_label.push(item_label);
-                }
-                if (!d[item_labelcolors]) {
-                    d[item_labelcolors] = true;
-                    unique_labelcolors.push(item_labelcolors);
-                }
-            }
-            if (unique_label.length != unique_labelcolors.length) {
-                propagate_jscolor = false;
-                for (i=0; i < unique_label.length; i++) {
-                    new_annotate(unique_label[i], [unique_labelcolors[i][1], unique_labelcolors[i][2], unique_labelcolors[i][3]]);
-                }
-                propagate_jscolor = true;
-            }
-            else {
-                for (i=0; i < unique_labelcolor.length; i++) {
-                    new_annotate(unique_labelcolor[i][0], [unique_labelcolors[i][1], unique_labelcolors[i][2], unique_labelcolors[i][3]]);
-                }
-            }
+            add_uniques(annotate);
         });
     };
     
@@ -860,14 +626,12 @@ function load_cb(data_id) {
         var playlist = [];
         var all_objs = m_scenes.get_all_objects("ALL", data_id);
         for (i = 0; i < all_objs.length; i++) {
-//            if (all_objs[i].annotate_onoff && all_objs[i].annotate_onoff > 0) {
-            if (all_objs[i].annotation_onoff && all_objs[i].annotation_onoff > 0) {
+            if (all_objs[i].annotate_onoff && all_objs[i].annotate_onoff > 0) {
                 playlist.push(all_objs[i]);
             }
         }
         for (i = 0; i < playlist.length; i++) {
-//            setTimeout(toggleLabel, playlist[i].annotate_onoff, playlist[i]);
-            setTimeout(toggleLabel, playlist[i].annotation_onoff, playlist[i]);
+            setTimeout(toggleLabel, playlist[i].annotate_onoff, playlist[i]);
         }
     };
     
