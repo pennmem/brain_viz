@@ -94,17 +94,19 @@ class GenElectrodeCoordinatesAndNames(SubjectConfig, ExternalProgramTask):
 class BuildBlenderSite(SubjectConfig, ExternalProgramTask):
     """ Creates a single directory site for displaying web-based blender scene """
     def requires(self):
-        GenElectrodeCoordinatesAndNames(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+        return GenElectrodeCoordinatesAndNames(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
     def program_args(self):
+        subject_num = extract_subject_num(self.SUBJECT)
         return ["./build_template_site.sh",
                 self.CONTACT.format(self.SUBJECT),
                 self.TAL.format(self.SUBJECT),
-                self.OUTPUT.format(self.SUBJECT)]
+                self.OUTPUT.format(subject_num)]
 
     def output(self):
         # More files are copied over, so this is a lazy check of output
-        return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT) + "/monopolar_names.txt")]
+        subject_num = extract_subject_num(self.SUBJECT)
+        return [luigi.LocalTarget(self.OUTPUT.format(subject_num) + "/monopolar_names.txt")]
 
 
 class GenBlenderScene(SubjectConfig, ExternalProgramTask):
@@ -125,7 +127,7 @@ class GenBlenderScene(SubjectConfig, ExternalProgramTask):
                 subject_num,
                 self.CORTEX.format(self.SUBJECT),
                 self.CONTACT.format(self.SUBJECT),
-                self.OUTPUT.format(self.SUBJECT)]
+                self.OUTPUT.format(subject_num)]
 
     def output(self):
         return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT) + "/iEEG_surface.blend"),
