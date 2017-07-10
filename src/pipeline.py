@@ -17,7 +17,7 @@ def extract_subject_num(subject):
 
 class SubjectConfig(luigi.Config):
     """ Genreal Luigi config class for processing single-subject"""
-    SUBJECT = luigi.Parameter()
+    SUBJECT = luigi.Parameter(default=None)
     BASE = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}")
     CORTEX = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}/surf/roi")
     CONTACT = luigi.Parameter(default="/data10/RAM/subjects/{}/tal/coords")
@@ -130,6 +130,15 @@ class GenBlenderScene(SubjectConfig, ExternalProgramTask):
                 self.OUTPUT.format(subject_num)]
 
     def output(self):
-        return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT) + "/iEEG_surface.blend"),
-                luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT) + "/iEEG_surface.bin"),
-                luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT) + "/iEEG_surface.json")]
+        subject_num = extract_subject_num(self.SUBJECT)
+        return [luigi.LocalTarget(self.OUTPUT.format(subject_num) + "/iEEG_surface.blend"),
+                luigi.LocalTarget(self.OUTPUT.format(subject_num) + "/iEEG_surface.bin"),
+                luigi.LocalTarget(self.OUTPUT.format(subject_num) + "/iEEG_surface.json")]
+
+class UpdateBrainVisualizations(SubjectConfig, luigi.Task):
+    """ Dummy task that triggers scene building for subjects """
+    def requires(self):
+        # TODO: This is just a hard-coded example. Needs to be generalized with logic for identifying the subjects to run
+        subjects = ["R1006P","R1010J", "R1013E"]
+        for subject in subjects:
+            yield GenBlenderScene(subject, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
