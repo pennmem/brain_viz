@@ -36,14 +36,15 @@ def run_task(subject, subject_num, task, base, cortex, contact, tal, output):
     assert os.path.exists(base)
     assert os.path.exists(contact)
     assert os.path.exists(tal)
-
-    subprocess.run('PYTHONPATH="../src/" luigi --module pipeline {} --local-scheduler\
-                   --SUBJECT {}\
-                   --BASE {}\
-                   --CORTEX {}\
-                   --CONTACT {}\
-                   --TAL {}\
-                   --OUTPUT {}'.format(task, subject, base, cortex, contact, tal, output),
+    command = 'PYTHONPATH="../src/" luigi --module pipeline {} --local-scheduler\
+               --SUBJECT {}\
+               --SUBJECT-NUM {}\
+               --BASE {}\
+               --CORTEX {}\
+               --CONTACT {}\
+               --TAL {}\
+               --OUTPUT {}'.format(task, subject, subject_num, base, cortex, contact, tal, output)
+    subprocess.run(command,
                    check=True,
                    shell=True,
                    stdout=subprocess.PIPE)
