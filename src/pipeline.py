@@ -3,26 +3,16 @@ import luigi
 from luigi.contrib.external_program import ExternalProgramTask
 
 
-def extract_subject_num(subject):
-    """ Convert full subject name to just the number
-
-        Ex: R1291_1 -> 291_1
-    """
-    if len(subject) > 7:
-        subject_num = subject[2:5] + subject[6:]
-    else:
-        subject_num = subject[2:5]
-    return subject_num
-
 
 class SubjectConfig(luigi.Config):
     """ Genreal Luigi config class for processing single-subject"""
     SUBJECT = luigi.Parameter(default=None)
+    SUBJECT_NUM = luigi.Parameter(default=None)
     BASE = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}")
     CORTEX = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}/surf/roi")
     CONTACT = luigi.Parameter(default="/data10/RAM/subjects/{}/tal/coords")
     TAL = luigi.Parameter(default="/data10/RAM/subjects/{}/tal")
-    OUTPUT = luigi.Parameter(default="/reports/r1/subjects/{}/reports/iEEG_surface_new")
+    OUTPUT = luigi.Parameter(default="/reports/r1/subjects/{}/reports/iEEG_surface")
 
 
 class CanStart(SubjectConfig, luigi.Task):
@@ -97,16 +87,14 @@ class BuildBlenderSite(SubjectConfig, ExternalProgramTask):
         return GenElectrodeCoordinatesAndNames(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
     def program_args(self):
-        subject_num = extract_subject_num(self.SUBJECT)
         return ["./build_template_site.sh",
                 self.CONTACT.format(self.SUBJECT),
                 self.TAL.format(self.SUBJECT),
-                self.OUTPUT.format(subject_num)]
+                self.OUTPUT.format(self.SUBJECT_NUM)]
 
     def output(self):
         # More files are copied over, so this is a lazy check of output
-        subject_num = extract_subject_num(self.SUBJECT)
-        return [luigi.LocalTarget(self.OUTPUT.format(subject_num) + "/monopolar_names.txt")]
+        return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/monopolar_names.txt")]
 
 
 class GenBlenderScene(SubjectConfig, ExternalProgramTask):
@@ -115,7 +103,6 @@ class GenBlenderScene(SubjectConfig, ExternalProgramTask):
         return BuildBlenderSite(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
     def program_args(self):
-        subject_num = extract_subject_num(self.SUBJECT)
         return ["/home1/zduey/blender/blender",
                 "-b",
                 "/home1/zduey/brain_viz/iEEG_surface_template/empty.blend",
@@ -124,16 +111,15 @@ class GenBlenderScene(SubjectConfig, ExternalProgramTask):
                 "create_scene.py",
                 "--",
                 self.SUBJECT,
-                subject_num,
+                self.SUBJECT_NUM,
                 self.CORTEX.format(self.SUBJECT),
                 self.CONTACT.format(self.SUBJECT),
                 self.OUTPUT.format(subject_num)]
 
     def output(self):
-        subject_num = extract_subject_num(self.SUBJECT)
-        return [luigi.LocalTarget(self.OUTPUT.format(subject_num) + "/iEEG_surface.blend"),
-                luigi.LocalTarget(self.OUTPUT.format(subject_num) + "/iEEG_surface.bin"),
-                luigi.LocalTarget(self.OUTPUT.format(subject_num) + "/iEEG_surface.json")]
+        return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.blend"),
+                luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.bin"),
+                luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.json")]
 
 class UpdateBrainVisualizations(SubjectConfig, luigi.Task):
     """ Dummy task that triggers scene building for subjects """
