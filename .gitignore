@@ -1,3 +1,4 @@
 notes.md
 test_data/*
 task_history.db
+config/luigi-state.pickle
