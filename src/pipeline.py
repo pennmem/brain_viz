@@ -1,4 +1,5 @@
 import os
+import glob
 import luigi
 from luigi.contrib.external_program import ExternalProgramTask
 
@@ -8,6 +9,14 @@ class SubjectConfig(luigi.Config):
     """ Genreal Luigi config class for processing single-subject"""
     SUBJECT = luigi.Parameter(default=None)
     SUBJECT_NUM = luigi.Parameter(default=None)
+    BASE = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}")
+    CORTEX = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}/surf/roi")
+    CONTACT = luigi.Parameter(default="/data10/RAM/subjects/{}/tal/coords")
+    TAL = luigi.Parameter(default="/data10/RAM/subjects/{}/tal")
+    OUTPUT = luigi.Parameter(default="/reports/r1/subjects/{}/reports/iEEG_surface")
+
+
+class AllConfig(luigi.Config):
     BASE = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}")
     CORTEX = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}/surf/roi")
     CONTACT = luigi.Parameter(default="/data10/RAM/subjects/{}/tal/coords")
@@ -34,7 +43,7 @@ class FreesurferToWavefront(SubjectConfig, ExternalProgramTask):
     """ Converts freesurfer cortical surface binary files to wavefront object files """
 
     def requires(self):
-        return CanStart(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+        return CanStart(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
     def program_args(self):
         return ["./freesurfer2wavefront.sh",
@@ -50,7 +59,7 @@ class SplitCorticalSurface(SubjectConfig, ExternalProgramTask):
     """ Splits the left/right hemisphere wavefront objects into independent cortical surfaces """
 
     def requires(self):
-        return FreesurferToWavefront(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+        return FreesurferToWavefront(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
     def program_args(self):
         return ["./split_cortical.sh",
@@ -65,7 +74,7 @@ class SplitCorticalSurface(SubjectConfig, ExternalProgramTask):
 class GenElectrodeCoordinatesAndNames(SubjectConfig, ExternalProgramTask):
     """ Creates coordinate files and electrode names for blender """
     def requires(self):
-        return SplitCorticalSurface(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+        return SplitCorticalSurface(self.SUBJECT, self.SUBJECET_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
     def program_args(self):
         return ["./create_coordinates.sh",
@@ -84,7 +93,7 @@ class GenElectrodeCoordinatesAndNames(SubjectConfig, ExternalProgramTask):
 class BuildBlenderSite(SubjectConfig, ExternalProgramTask):
     """ Creates a single directory site for displaying web-based blender scene """
     def requires(self):
-        return GenElectrodeCoordinatesAndNames(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+        return GenElectrodeCoordinatesAndNames(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
     def program_args(self):
         return ["./build_template_site.sh",
@@ -100,7 +109,7 @@ class BuildBlenderSite(SubjectConfig, ExternalProgramTask):
 class GenBlenderScene(SubjectConfig, ExternalProgramTask):
     """ Generates the blender scene from wavefront object and coordinate files """
     def requires(self):
-        return BuildBlenderSite(self.SUBJECT, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+        return BuildBlenderSite(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
     def program_args(self):
         return ["/home1/zduey/blender/blender",
@@ -114,17 +123,24 @@ class GenBlenderScene(SubjectConfig, ExternalProgramTask):
                 self.SUBJECT_NUM,
                 self.CORTEX.format(self.SUBJECT),
                 self.CONTACT.format(self.SUBJECT),
-                self.OUTPUT.format(subject_num)]
+                self.OUTPUT.format(self.SUBJECT_NUM)]
 
     def output(self):
         return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.blend"),
                 luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.bin"),
                 luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.json")]
 
-class UpdateBrainVisualizations(SubjectConfig, luigi.Task):
+class BuildAll(AllConfig, luigi.Task):
     """ Dummy task that triggers scene building for subjects """
     def requires(self):
-        # TODO: This is just a hard-coded example. Needs to be generalized with logic for identifying the subjects to run
-        subjects = ["R1006P","R1010J", "R1013E"]
+        # Create a dictionary mapping subject numbers to subject identifiers
+        subject_dirs = glob.glob("/reports/r1/subjects/*/")
+        subjects = [path.split('/')[-2] for path in subject_dirs]
+        subject_dict = {}
         for subject in subjects:
-            yield GenBlenderScene(subject, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+            match_dirs = glob.glob("/protocols/r1/subjects/R1{}*".format(subject))
+            if len(match_dirs) == 1:
+                subject_dict[subject] = match_dirs[0].split('/')[-1]
+
+        for subject_num, subject_id in subject_dict.items():
+            yield GenBlenderScene(subject_id, subject_num, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)

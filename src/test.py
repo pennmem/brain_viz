@@ -127,4 +127,3 @@ def test_gen_blender_scene():
     assert os.path.exists(output + '/iEEG_surface.json')
 
     return
-
