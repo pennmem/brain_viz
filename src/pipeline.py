@@ -74,7 +74,7 @@ class SplitCorticalSurface(SubjectConfig, ExternalProgramTask):
 class GenElectrodeCoordinatesAndNames(SubjectConfig, ExternalProgramTask):
     """ Creates coordinate files and electrode names for blender """
     def requires(self):
-        return SplitCorticalSurface(self.SUBJECT, self.SUBJECET_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+        return SplitCorticalSurface(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
 
     def program_args(self):
         return ["./create_coordinates.sh",
