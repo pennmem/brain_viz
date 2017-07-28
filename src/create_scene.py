@@ -128,6 +128,24 @@ def setMaterial(ob, mat):
     me = ob.data
     me.materials.append(mat)
 
+def addPriorStimSites(filepath, pos_color, neg_color):
+    with open(filepath, 'r') as f:
+        next(f) # skip header
+        for line in f:
+          subject, contact, experiment, deltarec, enhancement, x, y, z = line.split(',')
+          x = 0.02 * float(x)
+          y = 0.02 * float(y)
+          z = 0.02 * float(z)
+          bpy.ops.mesh.primitive_uv_sphere_add(size=2, location=(x, y, z))
+          object = bpy.context.object
+          object.name = ":".join([subject, experiment])
+          object.scale = (0.02, 0.02, 0.02)
+          if enhancement == "FALSE":
+              setMaterial(object, pos_color)
+          else:
+              setMaterial(object, neg_color)
+    return
+
 if __name__ == "__main__":
     # get the args passed to blender after "--", all of which are ignored by
     # blender so scripts may receive their own arguments
