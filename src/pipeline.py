@@ -224,6 +224,18 @@ class GenBlenderScene(SubjectConfig, luigi.Task):
                 luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.bin"),
                 luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.json")]
 
+class RebuildBlenderScene(SubjectConfig, luigi.Task):
+    """ Remove the old blender scene and regenereate it. Used for when the underlying
+        visualization data (.bin, .blend, .json) or the scene creation script has
+        changed
+    """
+
+    def requires(self):
+        if os.path.exists(self.OUTPUT.format(self.SUBJECT_NUM)):
+            shutil.rmtree(self.OUTPUT.format(self.SUBJECT_NUM))
+            yield GenBlenderScene(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+
+
 
 class BuildAll(AllConfig, luigi.Task):
     """ Dummy task that triggers scene building for subjects """
