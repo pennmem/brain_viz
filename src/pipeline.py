@@ -4,6 +4,14 @@ import shutil
 import luigi
 import subprocess
 
+from mapper import build_prior_stim_location_mapping
+
+"""
+TODO
+- Update existing tests to handle new parameter and run
+- Update pipeline to run the prior stim site task
+- Add prior stim site test
+"""
 
 class SubjectConfig(luigi.Config):
     """ Genreal Luigi config class for processing single-subject"""
@@ -13,6 +21,7 @@ class SubjectConfig(luigi.Config):
     CORTEX = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}/surf/roi")
     CONTACT = luigi.Parameter(default="/data10/RAM/subjects/{}/tal/coords")
     TAL = luigi.Parameter(default="/data10/RAM/subjects/{}/tal")
+    IMAGE = luigi.Parameter(default="/data10/RAM/subjects/{}/imaging/autoloc/")
     OUTPUT = luigi.Parameter(default="/reports/r1/subjects/{}/reports/iEEG_surface")
 
 
@@ -21,6 +30,7 @@ class AllConfig(luigi.Config):
     CORTEX = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}/surf/roi")
     CONTACT = luigi.Parameter(default="/data10/RAM/subjects/{}/tal/coords")
     TAL = luigi.Parameter(default="/data10/RAM/subjects/{}/tal")
+    IMAGE = luigi.Parameter(default="/data10/RAM/subjects/{}/imaging/autoloc/")
     OUTPUT = luigi.Parameter(default="/reports/r1/subjects/{}/reports/iEEG_surface")
 
 
@@ -43,7 +53,7 @@ class FreesurferToWavefront(SubjectConfig, luigi.Task):
     """ Converts freesurfer cortical surface binary files to wavefront object files """
 
     def requires(self):
-        return CanStart(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+        return CanStart(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)
 
     def run(self):
         os.mkdir(self.CORTEX.format(self.SUBJECT))
@@ -86,7 +96,7 @@ class SplitCorticalSurface(SubjectConfig, luigi.Task):
     """ Splits the left/right hemisphere wavefront objects into independent cortical surfaces """
 
     def requires(self):
-        return FreesurferToWavefront(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+        return FreesurferToWavefront(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)
 
     def run(self):
         codedir = os.getcwd() # code directory
@@ -157,7 +167,7 @@ class GenElectrodeCoordinatesAndNames(SubjectConfig, luigi.Task):
         is also captured in the database
     """
     def requires(self):
-        return SplitCorticalSurface(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+        return SplitCorticalSurface(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE,  self.OUTPUT)
 
     def run(self):
         codedir = os.getcwd()
@@ -175,10 +185,28 @@ class GenElectrodeCoordinatesAndNames(SubjectConfig, luigi.Task):
                 luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/bipolar_names.txt")]
 
 
+class GenMappedPriorStimSites(SubjectConfig, luigi.Task):
+    """" Creates the prior stim locations and results mapped to this subject's specific brain """
+
+    def requires(self):
+        """ This only depends on the localization pipeline having been run, so leave it blank for now """
+        return
+
+    def run(self):
+        build_prior_stim_location_mapping(self.SUBJECT,
+                                          self.BASE.format(self.SUBJECT),
+                                          self.IMAGE.format(self.SUBJECT))
+        return
+
+    def output(self):
+        return luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/prior_stim/" + self.SUBJECT + "_allcords.csv")
+
+
 class BuildBlenderSite(SubjectConfig, luigi.Task):
     """ Creates a single directory site for displaying web-based blender scene """
     def requires(self):
-        return GenElectrodeCoordinatesAndNames(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+        return [GenElectrodeCoordinatesAndNames(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT),
+                GenMappedPriorStimSites(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)]
 
     def run(self):
         shutil.copytree(os.getcwd() + "/../iEEG_surface_template/", self.OUTPUT.format(self.SUBJECT_NUM))
@@ -202,7 +230,7 @@ class GenBlenderScene(SubjectConfig, luigi.Task):
     """ Generates the blender scene from wavefront object and coordinate files """
 
     def requires(self):
-        return BuildBlenderSite(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+        return BuildBlenderSite(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)
 
     def run(self):
         subprocess.run(["/home1/zduey/blender/blender",
@@ -224,6 +252,7 @@ class GenBlenderScene(SubjectConfig, luigi.Task):
                 luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.bin"),
                 luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.json")]
 
+
 class RebuildBlenderScene(SubjectConfig, luigi.Task):
     """ Remove the old blender scene and regenereate it. Used for when the underlying
         visualization data (.bin, .blend, .json) or the scene creation script has
@@ -233,7 +262,7 @@ class RebuildBlenderScene(SubjectConfig, luigi.Task):
     def requires(self):
         if os.path.exists(self.OUTPUT.format(self.SUBJECT_NUM)):
             shutil.rmtree(self.OUTPUT.format(self.SUBJECT_NUM))
-            yield GenBlenderScene(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+            yield GenBlenderScene(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)
 
 
 
@@ -250,4 +279,4 @@ class BuildAll(AllConfig, luigi.Task):
                 subject_dict[subject] = match_dirs[0].split('/')[-1]
 
         for subject_num, subject_id in subject_dict.items():
-            yield GenBlenderScene(subject_id, subject_num, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.OUTPUT)
+            yield GenBlenderScene(subject_id, subject_num, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)

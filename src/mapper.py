@@ -2,32 +2,23 @@ import io
 import os
 import sys
 import shutil
+import constants
 import subprocess
 import numpy as np
 import pandas as pd
+
 from deltarec import build_prior_stim_results_table
 
 
-def build_prior_stim_location_mapping(subject):
-    CH2 = "~sudas/DARPA/ch2.nii.gz"
-    RDIR = "~sudas/bin/localization/template_to_NickOasis"
-    faffine = RDIR + "/ch22t0GenericAffine.mat"
-    fwarp = RDIR + "/ch22t1Warp.nii.gz"
-    finversewarp = RDIR + "/ch22t1InverseWarp.nii.gz"
-    basedir = "/data10/eeg/freesurfer/subjects/{}/"
-    workdir= basedir + "prior_stim/"
-    tdir = "/data10/RAM/subjects/{}/imaging/autoloc/"
-
-    basedir = basedir.format(subject)
-    workdir = workdir.format(subject)
-
-    if os.path.exists(tdir.format(subject)) == False:
+def build_prior_stim_location_mapping(subject, basedir, imagedir):
+    if os.path.exists(imagedir) == False:
         raise FileNotFoundError("autloc folder for {} does not exist".format(subject))
 
-    initialize(subject, workdir, tdir, CH2)
+    workdir = basedir + "/prior_stim/"
+    initialize(subject, workdir, imagedir)
     Norig = get_orig_mat(basedir, "vox2ras")
     Torig = get_orig_mat(basedir, "vox2ras-tkr")
-    generate_generic_RAS_file(tdir, workdir, subject)
+    generate_generic_RAS_file(imagedir, workdir, subject)
 
     prior_stim_df = build_prior_stim_results_table()
     prior_stim_df["fs_x"] = np.nan
@@ -37,17 +28,19 @@ def build_prior_stim_location_mapping(subject):
     subjects = prior_stim_df["subject_id"].unique()
     for stim_subject in subjects:
         print("Converting coordinates from stim subject {} to subject {}".format(stim_subject, subject))
-        mni_df = load_mni_coords(stim_subject, tdir)
+        mni_df = load_mni_coords(stim_subject)
         if mni_df is None:
             print("Unable to retrieve mni coordinates for subject: {}".format(stim_subject))
             continue
         stimulated_bipolars = prior_stim_df[prior_stim_df["subject_id"] == stim_subject]["contact_name"].unique()
         for bipolar_contact in stimulated_bipolars:
-            ret_code = save_mni_mid_coordinates(workdir, stim_subject, mni_df, bipolar_contact)
+            ret_code = save_mni_mid_coordinates(workdir, stim_subject,
+                                                mni_df, bipolar_contact)
             if ret_code == -1:
                 continue
-            CT_transform(tdir, workdir, fwarp, faffine, subject, stim_subject)
-            T1_transform(tdir, workdir, fwarp, faffine, subject, stim_subject)
+            T1_transform(imagedir, workdir, constants.WARP_FILE,
+                         constants.GENERIC_AFFINE_TRANSFORM_FILE, subject,
+                         stim_subject)
             fs_coords = get_fs_vector(workdir, subject, stim_subject, Norig, Torig)
 
             prior_stim_df.loc[((prior_stim_df["subject_id"] == stim_subject) &
@@ -66,20 +59,20 @@ def build_prior_stim_location_mapping(subject):
     return
 
 
-def initialize(subject, workdir, tdir, CH2):
+def initialize(subject, workdir, imagedir):
     if os.path.exists(workdir) == False:
         os.mkdir(workdir)
 
-    subprocess.run("c3d " + CH2 + " -scale 0 -o " + workdir + subject +\
+    subprocess.run("c3d " + constants.CH2 + " -scale 0 -o " + workdir + subject +\
                    "_stimdeltarec_mni.nii.gz",
                    shell=True)
 
-    subprocess.run("c3d " + tdir.format(subject) + "T00_" + subject +\
+    subprocess.run("c3d " + imagedir + "T00_" + subject +\
                    "_mprage.nii.gz -scale 0 -o " + workdir + subject +\
                    "_stimdeltarec_target_T1.nii.gz",
                    shell=True)
 
-    subprocess.run("c3d " + tdir.format(subject) + "T01_" + subject +\
+    subprocess.run("c3d " + imagedir + "T01_" + subject +\
                    "_CT.nii.gz  -scale 0 -o " + workdir + subject +\
                    "_stimdeltarec_target_CT.nii.gz",
                    shell=True)
@@ -88,7 +81,7 @@ def initialize(subject, workdir, tdir, CH2):
 
 def get_orig_mat(basedir, mri_info_command):
     result = subprocess.run('mri_info --' + mri_info_command + ' ' +\
-                            basedir + "mri/orig.mgz",
+                            basedir + "/mri/orig.mgz",
                             stdout=subprocess.PIPE,
                             shell=True)
     output = io.BytesIO(result.stdout)
@@ -96,17 +89,17 @@ def get_orig_mat(basedir, mri_info_command):
     return matrix
 
 
-def generate_generic_RAS_file(tdir, workdir, subject):
-    tdir = tdir.format(subject)
-    subprocess.run('c3d_affine_tool ' + tdir +\
+def generate_generic_RAS_file(imagedir, workdir, subject):
+    imagedir = imagedir
+    subprocess.run('c3d_affine_tool ' + imagedir +\
                    '/T01_CT_to_T00_mprageANTs0GenericAffine_RAS.mat -oitk ' +\
                    workdir + subject +\
                    '_T01_CT_to_T00_mprageANTs0GenericAffine_RAS_itk.txt',
                    shell=True)
     return
 
-def load_mni_coords(subject, tdir):
-    mni_file = tdir.format(subject) + "electrodelabels_and_coordinates_mni_mid.csv"
+def load_mni_coords(subject):
+    mni_file = "/data10/RAM/subjects/{}/imaging/autoloc/electrodelabels_and_coordinates_mni_mid.csv".format(subject)
     # Some subjects do not have this file built. Gracefully skip them for now
     if os.path.exists(mni_file) == False:
       print("No mni coordinate file for subject {}".format(subject))
@@ -154,28 +147,26 @@ def save_mni_mid_coordinates(workdir, subject, mni_df, bipolar_contact):
     return
 
 
-def CT_transform(tdir, workdir, fwarp, faffine, subject, stim_subject):
-    tdir = tdir.format(subject)
+def CT_transform(imagedir, workdir, warp_file, affine_transform_file, subject, stim_subject):
     subprocess.run('~sudas/bin/ants/antsApplyTransformsToPoints -d 3 -i ' + \
                    workdir + stim_subject + '_electrode_coordinates_mni_mid.csv -o ' + \
                    workdir + subject + '_from_' + stim_subject +\
-                   '_electrode_coordinates_mni_mid_tsub_CT.csv -t ' + fwarp +\
-                   ' -t ' + faffine + ' -t ' + tdir +\
+                   '_electrode_coordinates_mni_mid_tsub_CT.csv -t ' + warp_file +\
+                   ' -t ' + affine_transform_file + ' -t ' + imagedir +\
                    '/T00/thickness/' + subject + 'TemplateToSubject1Warp.nii.gz -t ' +\
-                   tdir + '/T00/thickness/' + subject + 'TemplateToSubject0GenericAffine.mat -t ' + \
+                   imagedir + '/T00/thickness/' + subject + 'TemplateToSubject0GenericAffine.mat -t ' + \
                    workdir + subject + '_T01_CT_to_T00_mprageANTs0GenericAffine_RAS_itk.txt',
                    shell=True)
     return
 
-def T1_transform(tdir, workdir, fwarp, faffine, subject, stim_subject):
-    tdir = tdir.format(subject)
+def T1_transform(imagedir, workdir, warp_file, affine_transform_file, subject, stim_subject):
     subprocess.run('~sudas/bin/ants/antsApplyTransformsToPoints -d 3 -i ' + \
                    workdir + stim_subject + '_electrode_coordinates_mni_mid.csv -o ' + \
                    workdir + subject + '_from_' + stim_subject +\
-                   '_electrode_coordinates_mni_mid_tsub_T1.csv -t ' + fwarp +\
-                   ' -t ' + faffine + ' -t ' + tdir +\
+                   '_electrode_coordinates_mni_mid_tsub_T1.csv -t ' + warp_file +\
+                   ' -t ' + affine_transform_file + ' -t ' + imagedir +\
                    '/T00/thickness/' + subject + 'TemplateToSubject1Warp.nii.gz -t ' +\
-                   tdir + '/T00/thickness/' + subject + 'TemplateToSubject0GenericAffine.mat',
+                   imagedir + '/T00/thickness/' + subject + 'TemplateToSubject0GenericAffine.mat',
                    shell=True)
 
     return
@@ -191,8 +182,3 @@ def get_fs_vector(workdir, subject, stim_subject, Norig, Torig):
     coords = np.append(coords, [1])
     fscoords = np.dot(np.dot(Torig, np.linalg.inv(Norig)), coords)
     return fscoords
-
-if __name__ == "__main__":
-    args = sys.argv
-    subject = args[1]
-    build_prior_stim_location_mapping(subject)
