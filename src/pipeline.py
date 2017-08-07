@@ -8,8 +8,6 @@ from mapper import build_prior_stim_location_mapping
 
 """
 TODO
-- Update existing tests to handle new parameter and run
-- Update pipeline to run the prior stim site task
 - Add prior stim site test
 """
 
@@ -233,7 +231,7 @@ class GenBlenderScene(SubjectConfig, luigi.Task):
         return BuildBlenderSite(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)
 
     def run(self):
-        subprocess.run(["/home1/zduey/blender/blender",
+        subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
                         "-b",
                         "/home1/zduey/brain_viz/iEEG_surface_template/empty.blend",
                         "-b",

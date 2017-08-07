@@ -2,6 +2,8 @@ import io
 import os
 import sys
 import shutil
+import logging
+import datetime
 import constants
 import subprocess
 import numpy as np
@@ -10,16 +12,30 @@ import pandas as pd
 from deltarec import build_prior_stim_results_table
 
 
+now = datetime.datetime.now()
+now = now.strftime("%Y_%m_%d_%H_%M_%S")
+logging.basicConfig(filename='../logs/contact_mapper_%s.log' % now,
+                    format='[%(levelname)s]: %(asctime)s -- %(message)s',
+                    level=logging.INFO,
+                    datefmt='%m/%d/%Y %I:%M:%S %p')
+
+
 def build_prior_stim_location_mapping(subject, basedir, imagedir):
     if os.path.exists(imagedir) == False:
-        raise FileNotFoundError("autloc folder for {} does not exist".format(subject))
+        msg = "autloc folder for {} does not exist".format(subject)
+        logging.error(msg)
+        raise FileNotFoundError(msg)
 
+    logging.info("Initializing prior stim location folder")
     workdir = basedir + "/prior_stim/"
     initialize(subject, workdir, imagedir)
+
+    logging.info("Building subject-specific files")
     Norig = get_orig_mat(basedir, "vox2ras")
     Torig = get_orig_mat(basedir, "vox2ras-tkr")
     generate_generic_RAS_file(imagedir, workdir, subject)
 
+    logging.info("Getting prior stim results")
     prior_stim_df = build_prior_stim_results_table()
     prior_stim_df["fs_x"] = np.nan
     prior_stim_df["fs_y"] = np.nan
@@ -27,11 +43,11 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
 
     subjects = prior_stim_df["subject_id"].unique()
     for stim_subject in subjects:
-        print("Converting coordinates from stim subject {} to subject {}".format(stim_subject, subject))
+        logging.info("Converting coordinates from stim subject {} to subject {}".format(stim_subject, subject))
         mni_df = load_mni_coords(stim_subject)
         if mni_df is None:
-            print("Unable to retrieve mni coordinates for subject: {}".format(stim_subject))
-            continue
+            continue # error handled in function
+
         stimulated_bipolars = prior_stim_df[prior_stim_df["subject_id"] == stim_subject]["contact_name"].unique()
         for bipolar_contact in stimulated_bipolars:
             ret_code = save_mni_mid_coordinates(workdir, stim_subject,
@@ -102,19 +118,19 @@ def load_mni_coords(subject):
     mni_file = "/data10/RAM/subjects/{}/imaging/autoloc/electrodelabels_and_coordinates_mni_mid.csv".format(subject)
     # Some subjects do not have this file built. Gracefully skip them for now
     if os.path.exists(mni_file) == False:
-      print("No mni coordinate file for subject {}".format(subject))
+      logging.error("No mni coordinate file for subject {}".format(subject))
       return
 
     try:
         mni_df = pd.read_csv(mni_file, header=None)
     except Exception as e:
-        print("Error loading mni coordinate file for subject {}".format(subject))
+        logging.exception("Error loading mni coordinate file for subject {}".format(subject), exc_info=e)
         return
 
     mni_df["subject_id"] = subject
 
     if len(mni_df.columns) != 11:
-        print("Invalid mni coordinate file for subject: {}".format(subject))
+        logging.error("Invalid mni coordinate file for subject: {}".format(subject))
         return
 
     mni_df = mni_df.rename(columns={0:'contact_name',
@@ -136,7 +152,7 @@ def load_mni_coords(subject):
 def save_mni_mid_coordinates(workdir, subject, mni_df, bipolar_contact):
     single_contact_df = mni_df[mni_df["contact_name"] == bipolar_contact]
     if len(single_contact_df) == 0:
-        print("Contact {} not found for subject {}".format(bipolar_contact, subject))
+        logging.error("Contact {} not found for subject {}".format(bipolar_contact, subject))
         return -1
     single_contact_df["x"] *= -1
     single_contact_df["y"] *= -1
