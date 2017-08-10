@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>Surface Electrode Visualization</title>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width" />
+
+<link rel="stylesheet" href="iEEG_surface.css" type="text/css" />
+
+<script type="text/javascript" src="b4w.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+
+<script type="text/javascript" src="iEEG_surface.js"></script>
+
+<link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.5/jquery.mobile.min.js"></script>
+
+<script src="jscolor.min.js"></script>
+<script src="papaparse.min.js"></script>
+
+<style>
+div.button-wrap {
+    margin-left: 3px;
+    margin-right: 3px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="main_canvas_container" style="width:100%; float:left;"></div>
+
+<div id="options_panel" style="width:0%; position:absolute; right: 0; overflow: auto; max-height: 1000px;">
+    <div id="display_panel" data-role="collapsible">
+    <h4>Display</h4>
+    <fieldset data-role="controlgroup" data-type="horizontal">
+        <legend>Show hemisphere</legend>
+        <input type="checkbox" name="cortex_left" id="cortex_left" checked>
+        <label for="cortex_left">Left</label>
+        <input type="checkbox" name="cortex_right" id="cortex_right" checked>
+        <label for="cortex_right">Right</label>
+    </fieldset>
+    <fieldset data-role="controlgroup" data-type="horizontal">
+        <legend>Cortical regions</legend>
+        <input type="checkbox" name="cortex_color" id="cortex_color">
+        <label for="cortex_color">Random colors</label>
+        <input type="checkbox" name="cortex_transparent" id="cortex_transparent">
+        <label for="cortex_transparent">Transparent</label>
+    </fieldset>
+   </div>
+</div>
+
+<div id="show_options" class="ui-btn" style="position: absolute; z-index: 1; right: 0.6%; bottom: 0px;">Options</div>
+
+<div id="ecog_container" class="ui-btn" style="position: absolute; z-index: 1; left: 0.6%; bottom: 0px; width:500px;">Contacts/Locations</div>
+
+</body>
+
+</html>
