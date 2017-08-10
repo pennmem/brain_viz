@@ -28,12 +28,12 @@ def build_prior_stim_results_table():
 
     merged_df["open_loop"] = (merged_df["experiment"].str.find('2') != -1)
 
-    merged_df['experiment'] = merged_df['experiment'].replace('FR2', "Rec2")
-    merged_df['experiment'] = merged_df['experiment'].replace('FR3', "Rec3")
-    merged_df['experiment'] = merged_df['experiment'].replace('FR5', "Rec5")
-    merged_df['experiment'] = merged_df['experiment'].replace('catFR2', "Rec2")
-    merged_df['experiment'] = merged_df['experiment'].replace('catFR3', "Rec3")
-    merged_df['experiment'] = merged_df['experiment'].replace('catFR5', "Rec5")
+    merged_df['experiment'] = merged_df['experiment'].replace('FR2', "FR2/catFR2")
+    merged_df['experiment'] = merged_df['experiment'].replace('FR3', "FR3/catFR3")
+    merged_df['experiment'] = merged_df['experiment'].replace('FR5', "FR5/catFR5")
+    merged_df['experiment'] = merged_df['experiment'].replace('catFR2', "FR2/catFR2")
+    merged_df['experiment'] = merged_df['experiment'].replace('catFR3', "FR3/catFR3")
+    merged_df['experiment'] = merged_df['experiment'].replace('catFR5', "FR5/catFR5")
 
     recall_df = (merged_df.groupby(by=['subject_id', 'contact_name', 'stim_list',
                                        'recalled', 'experiment'])

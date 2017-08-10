@@ -1,36 +1,56 @@
-# Script to make a scene in Blender using Freesurfer cortical meshes and
-# monopolar and bipolar electrode contact coordinates.
-# Written by Joel Stein
-# June 2016 - March 2017
-
 import sys
 import bpy
 import glob
 
 bpy.ops.wm.addon_enable(module='blend4web')
 
+def gen_blender_scene(cortexdir, outputdir, priorstimdir, contactdir=None, subject=None, subject_num=None):
+    red, blue, green, white = setup_color_materials()
+    load_meshes(cortexdir)
+    prettify_objects(white)
+    consolidate_hemispheres()
 
-def generate_brain_image(subject, subject_num, cortex, contact, output):
-    cortexdir = cortex
-    contactdir = contact
-    outdir = output
+    if subject is not None:
+        add_contacts(contactdir + '/monopolar_blender.txt', red)
+        add_contacts(contactdir + '/bipolar_blender.txt', blue)
+        add_contacts(contactdir + '/monopolar_start_blender.txt', green)
+        add_prior_stim_sites(priorstimdir)
 
-    red = makeMaterial('Red',(1,0,0),(1,1,1),1)
-    blue = makeMaterial('Blue',(0,0,1),(1,1,1),1)
-    green = makeMaterial('Green',(0,1,0),(1,1,1),1)
-    white = makeMaterial('White',(1,1,1),(1,1,1),1)
+    add_prior_stim_sites(priorstimdir)
+    if subject is None:
+        bpy.data.objects['lh.pial-outer-smoothed'].select = True
+        bpy.ops.object.delete()
+
+    finalize_object_attributes()
+    add_scene_lighting()
+    add_camera()
+    save_scene(outputdir)
+    return
+
+
+def setup_color_materials():
+    red = make_material('Red',(1,0,0),(1,1,1),1)
+    blue = make_material('Blue',(0,0,1),(1,1,1),1)
+    green = make_material('Green',(0,1,0),(1,1,1),1)
+    white = make_material('White',(1,1,1),(1,1,1),1)
 
     bpy.data.materials["White"].game_settings.alpha_blend = "ALPHA"
     bpy.data.materials["White"].use_transparency = True
 
-    print('Importing meshes...')
+    return red, blue, green, white
+
+
+def load_meshes(cortexdir):
     for line in glob.glob(cortexdir + '/*.obj'):
         cortexpath = line
         bpy.ops.import_scene.obj(filepath=cortexpath)
+    return
 
+def prettify_objects(white):
     for ob in bpy.context.scene.objects:
-        setMaterial(ob, white)
+        set_material(ob, white)
         ob.select = True
+
     bpy.ops.object.shade_smooth()
     for ob in bpy.context.scene.objects:
         ob.select = False
@@ -41,56 +61,72 @@ def generate_brain_image(subject, subject_num, cortex, contact, output):
         o.scale[1] = 0.02
         o.scale[2] = 0.02
 
-    # make empty object for surface electrodes to orient towards
+    return
+
+
+def consolidate_hemispheres():
+    bpy.ops.object.empty_add(type='PLAIN_AXES')
+    bpy.ops.object.empty_add(type='PLAIN_AXES')
     bpy.ops.object.empty_add(type='PLAIN_AXES')
 
-    # parent left and right hemisphere meshes to objects lh and rh
-    bpy.ops.object.empty_add(type='PLAIN_AXES')
-    bpy.ops.object.empty_add(type='PLAIN_AXES')
     for ob in bpy.context.scene.objects:
         if ob.name[0] is 'l':
             ob.parent = bpy.data.objects["Empty.001"]
         if ob.name[0] is 'r':
             ob.parent = bpy.data.objects["Empty.002"]
+
     bpy.data.objects["Empty.001"].name = 'lh'
     bpy.data.objects["Empty.002"].name = 'rh'
     bpy.data.objects['lh'].b4w_do_not_batch = True
     bpy.data.objects['rh'].b4w_do_not_batch = True
 
-    # now add the monopolar, bipolar and initial position monopolar contacts from list of format name, x, y, z, type
-    print('Adding contacts...')
-    addContacts(contactdir + '/monopolar_blender.txt', red)
-    addContacts(contactdir + '/bipolar_blender.txt', blue)
-    addContacts(contactdir + '/monopolar_start_blender.txt', green)
+    return
 
+def finalize_object_attributes():
     for o in bpy.data.objects:
         o.b4w_selectable=True
         o.b4w_outlining=True
         o.b4w_do_not_batch=True
+    return
 
-    # here comes the sun!
-    bpy.ops.object.lamp_add(
-        type='SUN',
-        location = (7.48113, -6.50764, 5.34367)
-    )
+def add_scene_lighting():
+    bpy.ops.object.lamp_add(type='SUN')
     bpy.context.active_object.name = 'Sun'
 
-    # final camera position may need manual inspection and tweaking
+    bpy.ops.object.lamp_add(type='POINT', location = (-15,0,0))
+    bpy.context.active_object.name = 'Point1'
+
+    bpy.ops.object.lamp_add(type='POINT', location = (0,-15,0))
+    bpy.context.active_object.name = 'Point2'
+
+    bpy.ops.object.lamp_add(type='POINT', location = (15,0,0))
+    bpy.context.active_object.name = 'Point3'
+
+    bpy.ops.object.lamp_add(type='POINT', location = (0,15,0))
+    bpy.context.active_object.name = 'Point4'
+
+    bpy.ops.object.lamp_add(type='POINT', location = (0,0,-15))
+    bpy.context.active_object.name = 'Point5'
+    return
+
+def add_camera():
     bpy.ops.object.camera_add(
         location = (-8.4, 1.3, 1.7),
         rotation = (64.202362, 0.013625, 48.533962)
     )
     bpy.context.active_object.name = 'Camera'
-
-    # save .blend file and export .json file
-    blend_outfile = outdir + '/iEEG_surface.blend'
-    bpy.ops.wm.save_mainfile(filepath=blend_outfile)
-
-    json_outfile = outdir + '/iEEG_surface.json'
-    bpy.ops.export_scene.b4w_json(filepath=json_outfile)
     return
 
-def addContacts(contactpath, color):
+def save_scene(outputdir):
+    blend_outfile = outputdir + '/iEEG_surface.blend'
+    bpy.ops.wm.save_mainfile(filepath=blend_outfile)
+
+    json_outfile = outputdir + '/iEEG_surface.json'
+    bpy.ops.export_scene.b4w_json(filepath=json_outfile)
+
+    return
+
+def add_contacts(contactpath, color):
     with open(contactpath, 'r') as f:
         for line in f:
             a, b, c, d, e = line.split("\t")
@@ -109,10 +145,11 @@ def addContacts(contactpath, color):
             ob = bpy.context.object
             ob.name = a
             ob.scale = (0.02, 0.02, 0.02)
-            setMaterial(ob, color)
+            set_material(ob, color)
+    return
 
 
-def makeMaterial(name, diffuse, specular, alpha):
+def make_material(name, diffuse, specular, alpha):
     mat = bpy.data.materials.new(name)
     mat.diffuse_color = diffuse
     mat.diffuse_shader = 'LAMBERT'
@@ -124,27 +161,63 @@ def makeMaterial(name, diffuse, specular, alpha):
     mat.ambient = 1
     return mat
 
-def setMaterial(ob, mat):
+
+def set_material(ob, mat):
     me = ob.data
     me.materials.append(mat)
+    return
 
-def addPriorStimSites(filepath, pos_color, neg_color):
+
+def add_prior_stim_sites(filepath):
+    effect_sizes = get_normalized_effects(filepath)
+    i = 0
     with open(filepath, 'r') as f:
         next(f) # skip header
         for line in f:
-          subject, contact, experiment, deltarec, enhancement, x, y, z = line.split(',')
-          x = 0.02 * float(x)
-          y = 0.02 * float(y)
-          z = 0.02 * float(z)
-          bpy.ops.mesh.primitive_uv_sphere_add(size=2, location=(x, y, z))
-          object = bpy.context.object
-          object.name = ":".join([subject, experiment])
-          object.scale = (0.02, 0.02, 0.02)
-          if enhancement == "FALSE":
-              setMaterial(object, pos_color)
-          else:
-              setMaterial(object, neg_color)
+            subject, contact, experiment, deltarec, enhancement, x, y, z = line.split(',')
+            x = 0.02 * float(x)
+            y = 0.02 * float(y)
+            z = 0.02 * float(z)
+            bpy.ops.mesh.primitive_uv_sphere_add(size=2, location=(x, y, z))
+            object = bpy.context.object
+            object.name = ":".join([subject, experiment, contact, str(round(float(deltarec), 1))])
+            object.scale = (0.02, 0.02, 0.02)
+            if enhancement == "FALSE":
+                scaled_pos_color = make_material('scaled_blue',
+                                                 (1 - effect_sizes[i],
+                                                  1 - effect_sizes[i],
+                                                  1),
+                                                 (1,1,1),
+                                                 1)
+                set_material(object, scaled_pos_color)
+            else:
+                scaled_neg_color = make_material('scaled_red',
+                                                 (1,
+                                                  1 - effect_sizes[i],
+                                                  1 - effect_sizes[i]),
+                                                 (1,1,1),
+                                                 1)
+                set_material(object, scaled_neg_color)
+            i += 1
     return
+
+def get_normalized_effects(filepath):
+    effects = []
+    with open(filepath, 'r') as f:
+        next(f) # skip header
+        for line in f:
+            subject, contact, experiment, deltarec, enhancement, x, y, z = line.split(',')
+            effects.append(float(deltarec))
+
+    # Truncate endpoints to emphasize non-outliers
+    effects = [-50 if el < -50 else el for el in effects]
+    effects = [50 if el > 50 else el for el in effects]
+
+    # Project onto [0,1] range
+    effects = [el / max(effects) if el >= 0 else el / min(effects) for el in effects]
+
+    return effects
+
 
 if __name__ == "__main__":
     # get the args passed to blender after "--", all of which are ignored by
@@ -156,11 +229,22 @@ if __name__ == "__main__":
     else:
         args = args[args.index("--") + 1:]  # get all args after "--"
 
-    subject = args[0]
-    subject_num = args[1]
-    cortex = args[2]
-    contact = args[3]
-    output = args[4]
+    if len(args) == 6:
+        subject = args[0]
+        subject_num = args[1]
+        cortex = args[2]
+        contact = args[3]
+        output = args[4]
+        stimfile = args[5]
+        gen_blender_scene(cortex, output, stimfile, contactdir=contact,
+                          subject=subject, subject_num=subject_num)
 
-    generate_brain_image(subject, subject_num, cortex, contact, output)
+    elif len(args) == 3:
+        cortex = args[0]
+        output = args[1]
+        stimfile = args[2]
+        gen_blender_scene(cortex, output, stimfile)
+
+    else:
+        raise RuntimeError("Invalid number of arguments passed")
 

@@ -31,7 +31,6 @@ def cleanup(cortex, contact, output):
     return
 
 
-
 def run_task(subject, subject_num, task, base, cortex, contact, tal, output):
     assert os.path.exists(base)
     assert os.path.exists(contact)
@@ -139,5 +138,27 @@ def test_gen_blender_scene():
     assert os.path.exists(output + '/iEEG_surface.blend')
     assert os.path.exists(output + '/iEEG_surface.bin')
     assert os.path.exists(output + '/iEEG_surface.json')
+
+    return
+
+def test_gen_avg_brain():
+    cortex = "/home1/zduey/brain_viz/test_data/average/surf/roi/"
+    output = "/home1/zduey/brain_viz/test_data/avg/iEEG_surface/"
+
+    # Cleanup
+    if os.path.exists(output) == True:
+        shutil.rmtree(output)
+
+    command = 'PYTHONPATH="../src/" luigi --module pipeline BuildPriorStimAvgBrain --local-scheduler\
+               --AVG-ROI {}\
+               --OUTPUT {}'.format(cortex, output)
+    subprocess.run(command,
+                   check=True,
+                   shell=True,
+                   stdout=subprocess.PIPE)
+
+    assert os.path.exists(output + 'iEEG_surface/iEEG_surface.blend')
+    assert os.path.exists(output + 'iEEG_surface/iEEG_surface.bin')
+    assert os.path.exists(output + 'iEEG_surface/iEEG_surface.json')
 
     return

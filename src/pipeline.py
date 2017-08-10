@@ -5,11 +5,8 @@ import luigi
 import subprocess
 
 from mapper import build_prior_stim_location_mapping
+from deltarec import build_prior_stim_results_table
 
-"""
-TODO
-- Add prior stim site test
-"""
 
 class SubjectConfig(luigi.Config):
     """ Genreal Luigi config class for processing single-subject"""
@@ -31,6 +28,10 @@ class AllConfig(luigi.Config):
     IMAGE = luigi.Parameter(default="/data10/RAM/subjects/{}/imaging/autoloc/")
     OUTPUT = luigi.Parameter(default="/reports/r1/subjects/{}/reports/iEEG_surface")
 
+
+class AvgBrainConfig(luigi.Config):
+    OUTPUT = luigi.Parameter(default="/reports/r1/subjects/avg/")
+    AVG_ROI = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/average/surf/roi/")
 
 class CanStart(SubjectConfig, luigi.Task):
     """
@@ -231,6 +232,7 @@ class GenBlenderScene(SubjectConfig, luigi.Task):
         return BuildBlenderSite(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)
 
     def run(self):
+        subject_stimfile = self.BASE.format(self.SUBJECT) + "/prior_stim/" + self.SUBJECT + "_allcords.csv"
         subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
                         "-b",
                         "/home1/zduey/brain_viz/iEEG_surface_template/empty.blend",
@@ -242,7 +244,8 @@ class GenBlenderScene(SubjectConfig, luigi.Task):
                         self.SUBJECT_NUM,
                         self.CORTEX.format(self.SUBJECT),
                         self.CONTACT.format(self.SUBJECT),
-                        self.OUTPUT.format(self.SUBJECT_NUM)])
+                        self.OUTPUT.format(self.SUBJECT_NUM),
+                        subject_stimfile])
         return
 
     def output(self):
@@ -278,3 +281,40 @@ class BuildAll(AllConfig, luigi.Task):
 
         for subject_num, subject_id in subject_dict.items():
             yield GenBlenderScene(subject_id, subject_num, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)
+
+
+class CanBuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
+    def output(self):
+        return luigi.LocalTarget(self.AVG_ROI + "lh.pial.obj")
+
+class BuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
+    """ Creates the visualization showing prior stim locations on the average brain """
+    def requires(self):
+        return CanBuildPriorStimAvgBrain(self.OUTPUT, self.AVG_ROI)
+
+    def run(self):
+        shutil.copytree(os.getcwd() + "/../iEEG_avg_surface_template/", self.OUTPUT)
+        prior_stim_results_df = build_prior_stim_results_table()
+        prior_stim_results_df = prior_stim_results_df[prior_stim_results_df["deltarec"].isnull() == False]
+
+        stimfile = self.OUTPUT + "prior_stim_locations.csv"
+        prior_stim_results_df.to_csv(stimfile, index=False)
+
+        # run subprocess to generate the blender scene
+        subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
+                        "-b",
+                        "/home1/zduey/brain_viz/iEEG_surface_template/empty.blend",
+                        "-b",
+                        "--python",
+                        "create_scene.py",
+                        "--",
+                        self.AVG_ROI,
+                        self.OUTPUT,
+                        stimfile])
+
+        return
+
+    def output(self):
+        return luigi.LocalTarget(self.OUTPUT + "iEEG_surface.blend")
+
+
