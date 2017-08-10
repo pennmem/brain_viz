@@ -71,6 +71,11 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
                                (prior_stim_df["contact_name"] == bipolar_contact)),
                               "fs_z"] = fs_coords[2]
 
+    # Final cleanup of the file
+    prior_stim_df = prior_stim_df.dropna(axis=0, how='any')
+    del prior_stim_df['x']
+    del prior_stim_df['y']
+    del prior_stim_df['z']
     prior_stim_df.to_csv(workdir + subject + "_allcords.csv", index=False)
     return
 
