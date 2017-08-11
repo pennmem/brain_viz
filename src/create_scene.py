@@ -5,6 +5,7 @@ import glob
 bpy.ops.wm.addon_enable(module='blend4web')
 
 def gen_blender_scene(cortexdir, outputdir, priorstimdir, contactdir=None, subject=None, subject_num=None):
+    update_world_settings()
     red, blue, green, white = setup_color_materials()
     load_meshes(cortexdir)
     prettify_objects(white)
@@ -27,6 +28,12 @@ def gen_blender_scene(cortexdir, outputdir, priorstimdir, contactdir=None, subje
     save_scene(outputdir)
     return
 
+def update_world_settings():
+    bpy.context.scene.world.b4w_sky_settings.render_sky = True
+    bpy.context.scene.world.use_sky_blend = True
+    bpy.context.scene.world.horizon_color = (0.101, 0.181, 0.253)
+    bpy.context.scene.world.zenith_color = (0.334, 0.293, 0.276)
+    return
 
 def setup_color_materials():
     red = make_material('Red',(1,0,0),(1,1,1),1)
@@ -43,6 +50,8 @@ def setup_color_materials():
 def load_meshes(cortexdir):
     for line in glob.glob(cortexdir + '/*.obj'):
         cortexpath = line
+        if cortexpath.find(".pial") != -1:
+            continue # skip lh.pial.obj and rh.pial.obj files
         bpy.ops.import_scene.obj(filepath=cortexpath)
     return
 
@@ -169,6 +178,12 @@ def set_material(ob, mat):
 
 
 def add_prior_stim_sites(filepath):
+    # Empty axes so we can group positive and negative stim electrodes
+    bpy.ops.object.empty_add(type='PLAIN_AXES')
+    bpy.data.objects["Empty.001"].name = 'all_stim_pos'
+    bpy.ops.object.empty_add(type='PLAIN_AXES')
+    bpy.data.objects["Empty.001"].name = 'all_stim_neg'
+
     effect_sizes = get_normalized_effects(filepath)
     i = 0
     with open(filepath, 'r') as f:
