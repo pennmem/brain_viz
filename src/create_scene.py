@@ -11,17 +11,11 @@ def gen_blender_scene(cortexdir, outputdir, priorstimdir, contactdir=None, subje
     prettify_objects(white)
     consolidate_hemispheres()
 
+    # Only add contacts for subject-specific brains
     if subject is not None:
-        add_contacts(contactdir + '/monopolar_blender.txt', red)
-        add_contacts(contactdir + '/bipolar_blender.txt', blue)
-        add_contacts(contactdir + '/monopolar_start_blender.txt', green)
-        add_prior_stim_sites(priorstimdir)
+        add_contacts(contactdir + '/electrode_coordinates.csv', red, blue, green)
 
     add_prior_stim_sites(priorstimdir)
-    if subject is None:
-        bpy.data.objects['lh.pial-outer-smoothed'].select = True
-        bpy.ops.object.delete()
-
     finalize_object_attributes()
     add_scene_lighting()
     add_camera()
@@ -135,26 +129,32 @@ def save_scene(outputdir):
 
     return
 
-def add_contacts(contactpath, color):
+def add_contacts(contactpath, mono_color, bipo_color, orig_color):
+    atlas_color_map = {'monopolar_orig' : orig_color,
+                       'monopolar_dykstra': mono_color,
+                       'bipolar_dykstra': bipo_color}
+
     with open(contactpath, 'r') as f:
+        next(f) # skip header
         for line in f:
-            a, b, c, d, e = line.split("\t")
-            if "D" in e:
+            name, _type, x, y, z, atlas = line.split(",")
+            atlas = atlas.rstrip()
+            if "D" in _type:
                 bpy.ops.mesh.primitive_uv_sphere_add(
                     size = 2,
-                    location = (float(b), float(c), float(d))
+                    location = (float(x), float(y), float(z))
                 )
             else:
                 bpy.ops.mesh.primitive_cylinder_add(
                     vertices = 32,
                     radius = 2,
                     depth = 1.5,
-                    location = (float(b), float(c), float(d))
+                    location = (float(x), float(y), float(z))
                 )
             ob = bpy.context.object
-            ob.name = a
+            ob.name = name
             ob.scale = (0.02, 0.02, 0.02)
-            set_material(ob, color)
+            set_material(ob, atlas_color_map[atlas])
     return
 
 

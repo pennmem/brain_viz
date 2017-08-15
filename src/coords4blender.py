@@ -26,7 +26,7 @@ def save_coords_for_blender(subject, outdir):
     for col in ['x', 'y', 'z']:
         all_coord_df[col] = 0.02 * all_coord_df[col]
 
-    all_coord_df.to_csv(outdir + "electrode_coordinates.csv", index=False)
+    all_coord_df.to_csv(outdir + "/electrode_coordinates.csv", index=False)
 
     return
 

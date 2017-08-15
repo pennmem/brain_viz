@@ -6,6 +6,7 @@ import subprocess
 
 from mapper import build_prior_stim_location_mapping
 from deltarec import build_prior_stim_results_table
+from coords4blender import save_coords_for_blender
 
 
 class SubjectConfig(luigi.Config):
@@ -159,29 +160,15 @@ class SplitCorticalSurface(SubjectConfig, luigi.Task):
 
 
 class GenElectrodeCoordinatesAndNames(SubjectConfig, luigi.Task):
-    """ Creates coordinate files and electrode names for blender
-
-        Note: This task is no longer necessary since the names of the electrodes
-        can be retrieved from the talstruct (contacts.json and pairs.json), which
-        is also captured in the database
-    """
+    """ Creates coordinate files out of MATLAB talstructs """
     def requires(self):
         return SplitCorticalSurface(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE,  self.OUTPUT)
 
     def run(self):
-        codedir = os.getcwd()
-        os.chdir(self.CONTACT.format(self.SUBJECT))
-        command = 'matlab -r "coords4blender(\'' + self.SUBJECT + '\',\'' + self.CONTACT.format(self.SUBJECT) + '\'); exit;"'
-        subprocess.run(command, shell=True)
-        os.chdir(codedir)
+        save_coords_for_blender(self.SUBJECT, self.CONTACT.format(self.SUBJECT))
 
     def output(self):
-        return [luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/monopolar_start_blender.txt"),
-                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/monopolar_blender.txt"),
-                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/bipolar_blender.txt"),
-                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/monopolar_start_names.txt"),
-                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/monopolar_names.txt"),
-                luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/bipolar_names.txt")]
+        return [luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/electrode_coordinates.csv")]
 
 
 class GenMappedPriorStimSites(SubjectConfig, luigi.Task):
