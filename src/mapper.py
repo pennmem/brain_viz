@@ -149,6 +149,10 @@ def load_mni_coords(subject):
                                     8:'volume',
                                     9:'count'})
     del mni_df["?"]
+
+    # Convert contact names to uppercase for consistency
+    mni_df["contact_name"] = mni_df["contact_name"].apply(lambda x: x.upper())
+
     mni_df = mni_df[["subject_id", "contact_name", "x", "y", "z", "t",
                      "label", "mass", "volume", "count"]]
 
