@@ -117,7 +117,7 @@ def test_rebuild_blender_scene():
     subject = 'R1291M_1'
     subject_num = '291_1'
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
-    #cleanup(cortex, contact, output)
+    cleanup(cortex, contact, output)
     run_task(subject, subject_num, 'RebuildBlenderScene', base, cortex, contact, tal, output)
 
     assert os.path.exists(output + '/iEEG_surface.html')

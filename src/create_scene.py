@@ -14,6 +14,7 @@ def gen_blender_scene(cortexdir, outputdir, priorstimdir, contactdir=None, subje
     # Only add contacts for subject-specific brains
     if subject is not None:
         add_contacts(contactdir + '/electrode_coordinates.csv', red, blue, green)
+        orient_contacts(contactdir + '/electrode_coordinates.csv')
 
     add_prior_stim_sites(priorstimdir)
     finalize_object_attributes()
@@ -34,10 +35,8 @@ def setup_color_materials():
     blue = make_material('Blue',(0,0,1),(1,1,1),1)
     green = make_material('Green',(0,1,0),(1,1,1),1)
     white = make_material('White',(1,1,1),(1,1,1),1)
-
     bpy.data.materials["White"].game_settings.alpha_blend = "ALPHA"
     bpy.data.materials["White"].use_transparency = True
-
     return red, blue, green, white
 
 
@@ -53,17 +52,14 @@ def prettify_objects(white):
     for ob in bpy.context.scene.objects:
         set_material(ob, white)
         ob.select = True
-
     bpy.ops.object.shade_smooth()
     for ob in bpy.context.scene.objects:
         ob.select = False
-
     for o in bpy.data.objects:
         o.rotation_euler[0] = 0
         o.scale[0] = 0.02
         o.scale[1] = 0.02
         o.scale[2] = 0.02
-
     return
 
 
@@ -71,18 +67,15 @@ def consolidate_hemispheres():
     bpy.ops.object.empty_add(type='PLAIN_AXES')
     bpy.ops.object.empty_add(type='PLAIN_AXES')
     bpy.ops.object.empty_add(type='PLAIN_AXES')
-
     for ob in bpy.context.scene.objects:
         if ob.name[0] is 'l':
             ob.parent = bpy.data.objects["Empty.001"]
         if ob.name[0] is 'r':
             ob.parent = bpy.data.objects["Empty.002"]
-
     bpy.data.objects["Empty.001"].name = 'lh'
     bpy.data.objects["Empty.002"].name = 'rh'
     bpy.data.objects['lh'].b4w_do_not_batch = True
     bpy.data.objects['rh'].b4w_do_not_batch = True
-
     return
 
 def finalize_object_attributes():
@@ -95,19 +88,14 @@ def finalize_object_attributes():
 def add_scene_lighting():
     bpy.ops.object.lamp_add(type='SUN')
     bpy.context.active_object.name = 'Sun'
-
     bpy.ops.object.lamp_add(type='POINT', location = (-15,0,0))
     bpy.context.active_object.name = 'Point1'
-
     bpy.ops.object.lamp_add(type='POINT', location = (0,-15,0))
     bpy.context.active_object.name = 'Point2'
-
     bpy.ops.object.lamp_add(type='POINT', location = (15,0,0))
     bpy.context.active_object.name = 'Point3'
-
     bpy.ops.object.lamp_add(type='POINT', location = (0,15,0))
     bpy.context.active_object.name = 'Point4'
-
     bpy.ops.object.lamp_add(type='POINT', location = (0,0,-15))
     bpy.context.active_object.name = 'Point5'
     return
@@ -123,38 +111,61 @@ def add_camera():
 def save_scene(outputdir):
     blend_outfile = outputdir + '/iEEG_surface.blend'
     bpy.ops.wm.save_mainfile(filepath=blend_outfile)
-
     json_outfile = outputdir + '/iEEG_surface.json'
     bpy.ops.export_scene.b4w_json(filepath=json_outfile)
-
     return
 
 def add_contacts(contactpath, mono_color, bipo_color, orig_color):
     atlas_color_map = {'monopolar_orig' : orig_color,
                        'monopolar_dykstra': mono_color,
                        'bipolar_dykstra': bipo_color}
-
+    # Empty axes so we can group monopolar, bipolar, and original locations
+    bpy.ops.object.empty_add(type='PLAIN_AXES')
+    bpy.data.objects["Empty.001"].name = 'monopolar_orig'
+    bpy.ops.object.empty_add(type='PLAIN_AXES')
+    bpy.data.objects["Empty.001"].name = 'monopolar_dykstra'
+    bpy.ops.object.empty_add(type="PLAIN_AXES")
+    bpy.data.objects["Empty.001"].name = "bipolar_dykstra"
     with open(contactpath, 'r') as f:
         next(f) # skip header
         for line in f:
-            name, _type, x, y, z, atlas = line.split(",")
+            name, _type, x, y, z, atlas, orient_contact = line.split(",")
             atlas = atlas.rstrip()
-            if "D" in _type:
-                bpy.ops.mesh.primitive_uv_sphere_add(
-                    size = 2,
-                    location = (float(x), float(y), float(z))
-                )
-            else:
-                bpy.ops.mesh.primitive_cylinder_add(
-                    vertices = 32,
-                    radius = 2,
-                    depth = 1.5,
-                    location = (float(x), float(y), float(z))
-                )
+            bpy.ops.mesh.primitive_cylinder_add(
+                vertices = 32,
+                radius = 2,
+                depth = 1.5,
+                location = (float(x), float(y), float(z))
+            )
             ob = bpy.context.object
             ob.name = name
             ob.scale = (0.02, 0.02, 0.02)
             set_material(ob, atlas_color_map[atlas])
+            ob.parent = bpy.data.objects[atlas]
+    return
+
+
+def orient_contacts(contactpath):
+    with open(contactpath, 'r') as f:
+        next(f) # skip header
+        for line in f:
+            name, _type, x, y, z, atlas, orient_contact = line.split(",")
+            orient_contact = orient_contact.rstrip()
+            if (_type.find("D") == -1):
+                orient_towards(bpy.data.objects[name], bpy.data.objects["Empty"])
+            elif ((_type.find("D") != -1) & (orient_contact != '')):
+                orient_towards(bpy.data.objects[name], bpy.data.objects[orient_contact])
+            else:
+                orient_towards(bpy.data.objects[name], bpy.data.objects["Empty"])
+    return
+
+
+def orient_towards(contact, to_object):
+    bpy.context.scene.objects.active = contact
+    bpy.ops.object.constraint_add(type="TRACK_TO")
+    contact.constraints["Track To"].target = to_object
+    contact.constraints["Track To"].up_axis = "UP_X"
+    contact.constraints["Track To"].track_axis = "TRACK_Z"
     return
 
 
@@ -183,7 +194,6 @@ def add_prior_stim_sites(filepath):
     bpy.data.objects["Empty.001"].name = 'all_stim_pos'
     bpy.ops.object.empty_add(type='PLAIN_AXES')
     bpy.data.objects["Empty.001"].name = 'all_stim_neg'
-
     effect_sizes = get_normalized_effects(filepath)
     i = 0
     with open(filepath, 'r') as f:
@@ -205,6 +215,7 @@ def add_prior_stim_sites(filepath):
                                                  (1,1,1),
                                                  1)
                 set_material(object, scaled_pos_color)
+                object.parent = bpy.data.objects["all_stim_neg"]
             else:
                 scaled_neg_color = make_material('scaled_red',
                                                  (1,
@@ -213,6 +224,7 @@ def add_prior_stim_sites(filepath):
                                                  (1,1,1),
                                                  1)
                 set_material(object, scaled_neg_color)
+                object.parent = bpy.data.objects["all_stim_pos"]
             i += 1
     return
 
@@ -223,14 +235,11 @@ def get_normalized_effects(filepath):
         for line in f:
             subject, contact, experiment, deltarec, enhancement, x, y, z = line.split(',')
             effects.append(float(deltarec))
-
     # Truncate endpoints to emphasize non-outliers
     effects = [-50 if el < -50 else el for el in effects]
     effects = [50 if el > 50 else el for el in effects]
-
     # Project onto [0,1] range
     effects = [el / max(effects) if el >= 0 else el / min(effects) for el in effects]
-
     return effects
 
 
