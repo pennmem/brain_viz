@@ -69,15 +69,6 @@ function init_cb(canvas_elem, success) {
 
     load();
     
-    //Joel added this
-    
-    $( '#item-1').hide();
-    $( '#item-2').hide();
-    $( '#item-3').hide();
-    $( '#item-4').hide();
-    $( '#item-5').hide();
-    $( '#item-6').hide();
-    
     resize_fusion = function() {
         var options_width = $( "#options_panel" )[0].offsetWidth;
         if (options_width < 532) {zoom = (options_width-20)/512;} else {zoom = 1;}
@@ -94,7 +85,20 @@ function init_cb(canvas_elem, success) {
     };
     
     resize_options = function() {
+   
         document.getElementById('options_panel').style.maxHeight = ($(window).height() - document.getElementById('display_panel').style.height - document.getElementById('fusion_panel').style.height) +"px";
+    };
+
+    var build_ui = function() {
+	if (m_scenes.check_object_by_name("all_stim_neg") == false)
+	{
+            document.getElementById('prior_stim').hidden = true;
+	}
+	if ((m_scenes.check_object_by_name("hcp_mtg") == false) ||
+	    (m_scenes.check_object_by_name("avg_hfa") == false))
+	{
+            document.getElementById('functional_data').hidden = true;
+	}
     };
 
     var options_hidden = true;
@@ -103,6 +107,7 @@ function init_cb(canvas_elem, success) {
             document.getElementById("main_canvas_container").style.width="65%";
             document.getElementById("options_panel").style.width="35%";
             document.getElementById("show_options").style.right = "35.6%";
+	    build_ui();
             resize_fusion();
             resize_options();
             }
@@ -313,79 +318,42 @@ function load() {
  */
 function load_cb(data_id) {
     m_app.enable_camera_controls();
-
-    // Joel added this
     m_mouse.enable_mouse_hover_outline();
-    // Joel added below this
-    var monopolars;
-    var monopolars_start;
-    var bipolars;
-    var contacts;
-    var i;
-    // Load the monopolar and bipolar names and orient contacts to center
-    // Also load contacts at the original coordinates before Dykstra method
-    // Nested jQuery AJAX calls to make sure data is loaded
-    $.ajax({
-        type: 'GET',
-        url: 'monopolar_names.txt',
-        success: function(data) {
-            monopolars = data.replace(/\"/g, '');
-            monopolars = monopolars.replace(/,\s*$/, "");
-            monopolars = monopolars.split(",");
-            $.ajax({
-                type: 'GET',
-                url: 'monopolar_start_names.txt',
-                success: function(data) {
-                    monopolars_start = data.replace(/\"/g, '');
-                    monopolars_start = monopolars_start.replace(/,\s*$/, "");
-                    monopolars_start = monopolars_start.split(",");
-                    contacts = monopolars.concat(monopolars_start);
-                    $.ajax({
-                        type: 'GET',
-                        url: 'bipolar_names.txt',
-                        success: function(data) {
-                            bipolars = data.replace(/\"/g, '');
-                            bipolars = bipolars.replace(/,\s*$/, "");
-                            bipolars = bipolars.split(",");
-                            contacts = contacts.concat(bipolars);
-                            for (i = 0; i < contacts.length; i++) {
-                                m_constraints.append_track(m_scenes.get_object_by_name(contacts[i]), m_scenes.get_object_by_name('Empty'), 'Z','X');
-                            }
-                            // Hide the contacts at the original starting coordinates
-                            for (i = 0; i < monopolars_start.length; i++) {
-                                m_scenes.hide_object(m_scenes.get_object_by_name(monopolars_start[i]), false);
-                            }
-                        }
-                    });
-                }
-            }); 
-        }
-    });   
-    
+   
     // Button functions to show or hide hemispheres, cortex labels, transparency, monopolars, bipolars
-    var left_hidden = false;
-    var right_hidden = false;
-    var bipolars_hidden = false;
-    var monopolars_hidden = false;
-    var monopolars_start_hidden = true;
+    
+    function toggle_visibility(obj_name) {
+        var obj = m_scenes.get_object_by_name(obj_name);
+	if (m_scenes.is_hidden(obj) === true) {
+	    m_scenes.show_object(obj);
+	}
+	else {
+	    m_scenes.hide_object(obj);
+	}
+    };
     document.getElementById("cortex_left").onclick = function () {
-        if (left_hidden == false) {
-            m_scenes.hide_object(m_scenes.get_object_by_name('lh'), false);
-        }
-        else {
-            m_scenes.show_object(m_scenes.get_object_by_name('lh'), false);
-        }
-        left_hidden = !left_hidden;
+	    toggle_visibility("lh");
     };
     document.getElementById("cortex_right").onclick = function () {
-        if (right_hidden == false) {
-            m_scenes.hide_object(m_scenes.get_object_by_name('rh'), false);
-        }
-        else {
-            m_scenes.show_object(m_scenes.get_object_by_name('rh'), false);
-        }
-        right_hidden = !right_hidden;
+	    toggle_visibility("rh");
     };
+
+    document.getElementById("monopolars").onclick = function () {
+        toggle_visibility("monopolar_dykstra");
+    };
+    document.getElementById("bipolars").onclick = function () {
+	toggle_visibility("bipolar_dykstra");
+    };
+    document.getElementById("monopolars_start").onclick = function () {
+        toggle_visibility("monopolar_orig");
+    };
+    document.getElementById("all_stim_pos").onclick = function () {
+	toggle_visibility("all_stim_pos");
+    }
+    document.getElementById("all_stim_neg").onclick = function () {
+	toggle_visibility("all_stim_neg")
+    }
+
     var lh_test = new RegExp("lh.");
     var rh_test = new RegExp("rh.");
     document.getElementById("cortex_color").onclick = function () {
@@ -417,39 +385,6 @@ function load_cb(data_id) {
                 m_mat.set_diffuse_color(all_objs[i], "White", cortex_color);
             }
         }
-    };
-    document.getElementById("monopolars").onclick = function () {
-        for (i = 0; i < monopolars.length; i++) {
-            if (monopolars_hidden === false) {
-                m_scenes.hide_object(m_scenes.get_object_by_name(monopolars[i]), false);
-            }
-            else{
-                m_scenes.show_object(m_scenes.get_object_by_name(monopolars[i]), false);
-            }   
-        }
-        monopolars_hidden = !monopolars_hidden;
-    };
-    document.getElementById("bipolars").onclick = function () {
-        for (i = 0; i < bipolars.length; i++) {
-            if (bipolars_hidden === false) {
-                m_scenes.hide_object(m_scenes.get_object_by_name(bipolars[i]), false);
-            }
-            else{
-                m_scenes.show_object(m_scenes.get_object_by_name(bipolars[i]), false);
-            }   
-        }
-        bipolars_hidden = !bipolars_hidden;
-    };
-     document.getElementById("monopolars_start").onclick = function () {
-        for (i = 0; i < monopolars_start.length; i++) {
-            if (monopolars_start_hidden === false) {
-                m_scenes.hide_object(m_scenes.get_object_by_name(monopolars_start[i]), false);
-            }
-            else{
-                m_scenes.show_object(m_scenes.get_object_by_name(monopolars_start[i]), false);
-            }   
-        }
-        monopolars_start_hidden = !monopolars_start_hidden;
     };
     document.getElementById("slice_up").onclick = function () {
         canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
