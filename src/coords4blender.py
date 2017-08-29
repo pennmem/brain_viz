@@ -41,11 +41,24 @@ def get_coords(talStruct, elec_type, atlas=None):
         df = pd.DataFrame(columns=['contact_name' , 'contact_type', 'x', 'y', 'z'],
                              data={'contact_name' : talStruct['tagName'],
                                    'contact_type' : talStruct['eType'],
-                                   'x' : talStruct['x'],
-                                   'y' : talStruct['y'],
-                                   'z' : talStruct['z']}
+                                   'x' : talStruct['indivSurf']['x'],
+                                   'y' : talStruct['indivSurf']['y'],
+                                   'z' : talStruct['indivSurf']['z']}
                           )
         df['atlas'] = elec_type + '_orig'
+        return df
+
+    # Dykstra coordinates will be empty for subjects with only depths. Use
+    # tal coordinates instead in these cases
+    if (set(talStruct["eType"]) == {"D"}):
+        df = pd.DataFrame(columns=['contact_name' , 'contact_type', 'x', 'y', 'z'],
+                             data={'contact_name' : talStruct['tagName'],
+                                   'contact_type' : talStruct['eType'],
+                                   'x' : talStruct['indivSurf']['x'],
+                                   'y' : talStruct['indivSurf']['y'],
+                                   'z' : talStruct['indivSurf']['z']}
+                          )
+        df['atlas'] = elec_type + '_dykstra'
         return df
 
     df = pd.DataFrame(columns=['contact_name' , 'contact_type', 'x', 'y', 'z'],
