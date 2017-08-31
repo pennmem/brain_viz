@@ -88,12 +88,7 @@ def test_gen_coordinates():
     cleanup(cortex, contact, output)
     run_task(subject, subject_num, 'GenElectrodeCoordinatesAndNames', base, cortex, contact, tal, output)
 
-    assert os.path.exists(contact + '/monopolar_start_blender.txt')
-    assert os.path.exists(contact + '/monopolar_blender.txt')
-    assert os.path.exists(contact + '/bipolar_blender.txt')
-    assert os.path.exists(contact + '/monopolar_start_names.txt')
-    assert os.path.exists(contact + '/monopolar_names.txt')
-    assert os.path.exists(contact + '/bipolar_names.txt')
+    assert os.path.exists(contact + '/electrode_coordinates.csv')
 
     return
 
@@ -107,24 +102,6 @@ def test_build_blender_site():
 
     assert os.path.exists(output + '/iEEG_surface.html')
     assert os.path.exists(output + '/iEEG_surface.js')
-    assert os.path.exists(output + '/monopolar_names.txt')
-    assert os.path.exists(output + '/monopolar_start_names.txt')
-    assert os.path.exists(output + '/bipolar_names.txt')
-
-    return
-
-def test_rebuild_blender_scene():
-    subject = 'R1291M_1'
-    subject_num = '291_1'
-    base, cortex, contact, tal, output = build_directories(subject, subject_num)
-    cleanup(cortex, contact, output)
-    run_task(subject, subject_num, 'RebuildBlenderScene', base, cortex, contact, tal, output)
-
-    assert os.path.exists(output + '/iEEG_surface.html')
-    assert os.path.exists(output + '/iEEG_surface.js')
-    assert os.path.exists(output + '/monopolar_names.txt')
-    assert os.path.exists(output + '/monopolar_start_names.txt')
-    assert os.path.exists(output + '/bipolar_names.txt')
 
     return
 

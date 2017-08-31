@@ -4,6 +4,7 @@ import shutil
 import luigi
 import subprocess
 
+from rerun import RerunnableTask
 from mapper import build_prior_stim_location_mapping
 from deltarec import build_prior_stim_results_table
 from coords4blender import save_coords_for_blender
@@ -19,6 +20,7 @@ class SubjectConfig(luigi.Config):
     TAL = luigi.Parameter(default="/data10/RAM/subjects/{}/tal")
     IMAGE = luigi.Parameter(default="/data10/RAM/subjects/{}/imaging/autoloc/")
     OUTPUT = luigi.Parameter(default="/reports/r1/subjects/{}/reports/iEEG_surface")
+    FORCE_RERUN = luigi.Parameter(default=False)
 
 
 class AllConfig(luigi.Config):
@@ -34,7 +36,8 @@ class AvgBrainConfig(luigi.Config):
     OUTPUT = luigi.Parameter(default="/reports/r1/subjects/avg/")
     AVG_ROI = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/average/surf/roi/")
 
-class CanStart(SubjectConfig, luigi.Task):
+
+class CanStart(SubjectConfig, RerunnableTask):
     """
         Checks that the required freesurfer cortical surface and coordinate
         name files exist for the given SUBJECT
@@ -49,11 +52,13 @@ class CanStart(SubjectConfig, luigi.Task):
                 luigi.LocalTarget(self.TAL.format(self.SUBJECT) + "/VOX_coords_mother_dykstra_bipolar.txt")]
 
 
-class FreesurferToWavefront(SubjectConfig, luigi.Task):
+class FreesurferToWavefront(SubjectConfig, RerunnableTask):
     """ Converts freesurfer cortical surface binary files to wavefront object files """
 
     def requires(self):
-        return CanStart(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)
+        return CanStart(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
+                        self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
+                        self.FORCE_RERUN)
 
     def run(self):
         os.mkdir(self.CORTEX.format(self.SUBJECT))
@@ -92,11 +97,13 @@ class FreesurferToWavefront(SubjectConfig, luigi.Task):
                 luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/rh.pial.obj")]
 
 
-class SplitCorticalSurface(SubjectConfig, luigi.Task):
+class SplitCorticalSurface(SubjectConfig, RerunnableTask):
     """ Splits the left/right hemisphere wavefront objects into independent cortical surfaces """
 
     def requires(self):
-        return FreesurferToWavefront(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)
+        return FreesurferToWavefront(self.SUBJECT, self.SUBJECT_NUM, self.BASE,
+                                     self.CORTEX, self.CONTACT, self.TAL, 
+                                     self.IMAGE, self.OUTPUT, self.FORCE_RERUN)
 
     def run(self):
         codedir = os.getcwd() # code directory
@@ -159,10 +166,12 @@ class SplitCorticalSurface(SubjectConfig, luigi.Task):
                 luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/lh.Insula.obj")]
 
 
-class GenElectrodeCoordinatesAndNames(SubjectConfig, luigi.Task):
+class GenElectrodeCoordinatesAndNames(SubjectConfig, RerunnableTask):
     """ Creates coordinate files out of MATLAB talstructs """
     def requires(self):
-        return SplitCorticalSurface(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE,  self.OUTPUT)
+        return SplitCorticalSurface(self.SUBJECT, self.SUBJECT_NUM, self.BASE,
+                                    self.CORTEX, self.CONTACT, self.TAL, 
+                                    self.IMAGE,  self.OUTPUT, self.FORCE_RERUN)
 
     def run(self):
         save_coords_for_blender(self.SUBJECT, self.CONTACT.format(self.SUBJECT))
@@ -171,7 +180,7 @@ class GenElectrodeCoordinatesAndNames(SubjectConfig, luigi.Task):
         return [luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/electrode_coordinates.csv")]
 
 
-class GenMappedPriorStimSites(SubjectConfig, luigi.Task):
+class GenMappedPriorStimSites(SubjectConfig, RerunnableTask):
     """" Creates the prior stim locations and results mapped to this subject's specific brain """
 
     def requires(self):
@@ -188,20 +197,25 @@ class GenMappedPriorStimSites(SubjectConfig, luigi.Task):
         return luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/prior_stim/" + self.SUBJECT + "_allcords.csv")
 
 
-class BuildBlenderSite(SubjectConfig, luigi.Task):
+class BuildBlenderSite(SubjectConfig, RerunnableTask):
     """ Creates a single directory site for displaying web-based blender scene """
     def requires(self):
-        return [GenElectrodeCoordinatesAndNames(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT),
-                GenMappedPriorStimSites(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)]
+        return [GenElectrodeCoordinatesAndNames(self.SUBJECT, self.SUBJECT_NUM,
+                                                self.BASE, self.CORTEX, 
+                                                self.CONTACT, self.TAL,
+                                                self.IMAGE, self.OUTPUT,
+                                                self.FORCE_RERUN),
+                GenMappedPriorStimSites(self.SUBJECT, self.SUBJECT_NUM,
+                                        self.BASE, self.CORTEX, self.CONTACT,
+                                        self.TAL, self.IMAGE, self.OUTPUT,
+                                        self.FORCE_RERUN)]
 
     def run(self):
-        shutil.copytree(os.getcwd() + "/../iEEG_surface_template/", self.OUTPUT.format(self.SUBJECT_NUM))
-        os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/axial")
-        os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/coronal")
+        if os.path.exists(self.OUTPUT.format(self.SUBJECT_NUM)) == False:
+            shutil.copytree(os.getcwd() + "/../iEEG_surface_template/", self.OUTPUT.format(self.SUBJECT_NUM))
+            os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/axial")
+            os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/coronal")
 
-        shutil.copy(self.CONTACT.format(self.SUBJECT) + "/monopolar_names.txt", self.OUTPUT.format(self.SUBJECT_NUM))
-        shutil.copy(self.CONTACT.format(self.SUBJECT) + "/bipolar_names.txt", self.OUTPUT.format(self.SUBJECT_NUM))
-        shutil.copy(self.CONTACT.format(self.SUBJECT) + "/monopolar_start_names.txt", self.OUTPUT.format(self.SUBJECT_NUM))
         shutil.copy(self.TAL.format(self.SUBJECT) + "/VOX_coords_mother_dykstra.txt", self.OUTPUT.format(self.SUBJECT_NUM))
         shutil.copy(self.TAL.format(self.SUBJECT) + "/VOX_coords_mother_dykstra_bipolar.txt", self.OUTPUT.format(self.SUBJECT_NUM))
 
@@ -209,14 +223,16 @@ class BuildBlenderSite(SubjectConfig, luigi.Task):
 
     def output(self):
         # More files are copied over, so this is a lazy check of output
-        return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/monopolar_names.txt")]
+        return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/VOX_coords_mother_dykstra.txt")]
 
 
-class GenBlenderScene(SubjectConfig, luigi.Task):
+class GenBlenderScene(SubjectConfig, RerunnableTask):
     """ Generates the blender scene from wavefront object and coordinate files """
 
     def requires(self):
-        return BuildBlenderSite(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)
+        return BuildBlenderSite(self.SUBJECT, self.SUBJECT_NUM, self.BASE,
+                                self.CORTEX, self.CONTACT, self.TAL, self.IMAGE,
+                                self.OUTPUT, self.FORCE_RERUN)
 
     def run(self):
         subject_stimfile = self.BASE.format(self.SUBJECT) + "/prior_stim/" + self.SUBJECT + "_allcords.csv"
@@ -241,20 +257,7 @@ class GenBlenderScene(SubjectConfig, luigi.Task):
                 luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.json")]
 
 
-class RebuildBlenderScene(SubjectConfig, luigi.Task):
-    """ Remove the old blender scene and regenereate it. Used for when the underlying
-        visualization data (.bin, .blend, .json) or the scene creation script has
-        changed
-    """
-
-    def requires(self):
-        if os.path.exists(self.OUTPUT.format(self.SUBJECT_NUM)):
-            shutil.rmtree(self.OUTPUT.format(self.SUBJECT_NUM))
-            yield GenBlenderScene(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)
-
-
-
-class BuildAll(AllConfig, luigi.Task):
+class BuildAll(AllConfig, RerunnableTask):
     """ Dummy task that triggers scene building for subjects """
     def requires(self):
         # Create a dictionary mapping subject numbers to subject identifiers
@@ -267,12 +270,15 @@ class BuildAll(AllConfig, luigi.Task):
                 subject_dict[subject] = match_dirs[0].split('/')[-1]
 
         for subject_num, subject_id in subject_dict.items():
-            yield GenBlenderScene(subject_id, subject_num, self.BASE, self.CORTEX, self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT)
+            yield GenBlenderScene(subject_id, subject_num, self.BASE,
+                                  self.CORTEX, self.CONTACT, self.TAL,
+                                  self.IMAGE, self.OUTPUT, self.FORCE_RERUN)
 
 
 class CanBuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
     def output(self):
         return luigi.LocalTarget(self.AVG_ROI + "lh.pial.obj")
+
 
 class BuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
     """ Creates the visualization showing prior stim locations on the average brain """
