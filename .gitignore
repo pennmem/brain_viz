@@ -3,3 +3,5 @@ test_data/*
 task_history.db
 config/luigi-state.pickle
 logs/
+__pycache__
+*/__pycache__/*
