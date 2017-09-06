@@ -102,7 +102,7 @@ class SplitCorticalSurface(SubjectConfig, RerunnableTask):
 
     def requires(self):
         return FreesurferToWavefront(self.SUBJECT, self.SUBJECT_NUM, self.BASE,
-                                     self.CORTEX, self.CONTACT, self.TAL, 
+                                     self.CORTEX, self.CONTACT, self.TAL,
                                      self.IMAGE, self.OUTPUT, self.FORCE_RERUN)
 
     def run(self):

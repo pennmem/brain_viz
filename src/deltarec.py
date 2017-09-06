@@ -28,6 +28,7 @@ def build_prior_stim_results_table():
 
     merged_df["open_loop"] = (merged_df["experiment"].str.find('2') != -1)
 
+    # Note: To get per/subject results, comment out this mapping. TODO: Make this easier
     merged_df['experiment'] = merged_df['experiment'].replace('FR2', "FR2/catFR2")
     merged_df['experiment'] = merged_df['experiment'].replace('FR3', "FR3/catFR3")
     merged_df['experiment'] = merged_df['experiment'].replace('FR5', "FR5/catFR5")
