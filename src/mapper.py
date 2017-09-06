@@ -53,7 +53,7 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
             ret_code = save_mni_mid_coordinates(workdir, stim_subject,
                                                 mni_df, bipolar_contact)
             if ret_code == -1:
-                continue
+                continue # skip if issues were encountered
             T1_transform(imagedir, workdir, constants.WARP_FILE,
                          constants.GENERIC_AFFINE_TRANSFORM_FILE, subject,
                          stim_subject)
@@ -158,11 +158,53 @@ def load_mni_coords(subject):
 
     return mni_df
 
+
+def load_monopolar_mni_coords(subject):
+    mni_file = "/data10/RAM/subjects/{}/imaging/autoloc/electrodenames_coordinates_mni.csv".format(subject)
+    # Some subjects do not have this file built. Gracefully skip them for now
+    if os.path.exists(mni_file) == False:
+      logging.error("No monopolar mni coordinate file for subject {}".format(subject))
+      return
+
+    try:
+        mni_df = pd.read_csv(mni_file, header=None)
+    except Exception as e:
+        logging.exception("Error loading monopolar mni coordinate file for subject {}".format(subject), exc_info=e)
+        return
+
+    mni_df["subject_id"] = subject
+
+    if len(mni_df.columns) != 10:
+        logging.error("Invalid number of columns for monopolar mni coordinate file for subject: {}".format(subject))
+        return
+
+    mni_df = mni_df.rename(columns={0:'contact_name',
+                                    1:'x',
+                                    2:'y',
+                                    3:'z',
+                                    4:'t',
+                                    5:'label',
+                                    6:'mass',
+                                    7:'volume',
+                                    8:'count'})
+
+    # Convert contact names to uppercase for consistency
+    mni_df["contact_name"] = mni_df["contact_name"].apply(lambda x: x.upper())
+
+    mni_df = mni_df[["subject_id", "contact_name", "x", "y", "z", "t",
+                     "label", "mass", "volume", "count"]]
+
+    return mni_df
+
+
 def save_mni_mid_coordinates(workdir, subject, mni_df, bipolar_contact):
     single_contact_df = mni_df[mni_df["contact_name"] == bipolar_contact]
     if len(single_contact_df) == 0:
-        logging.error("Contact {} not found for subject {}".format(bipolar_contact, subject))
-        return -1
+        single_contact_df = build_custom_bipolar(subject, mni_df, bipolar_contact)
+        # Break here if unable to track down the contact
+        if single_contact_df is None:
+            return -1
+
     single_contact_df["x"] *= -1
     single_contact_df["y"] *= -1
 
@@ -171,6 +213,37 @@ def save_mni_mid_coordinates(workdir, subject, mni_df, bipolar_contact):
 
     return
 
+
+def build_custom_bipolar(subject, mni_df, bipolar_contact):
+    """ For non-consecutive contacts, create the mni_mid coordinates manually """
+    monopolar_mni_df = load_monopolar_mni_coords(subject)
+    contact_tokens = bipolar_contact.split('-')
+    contact1 = contact_tokens[0].strip()
+    contact2 = contact_tokens[1].strip()
+
+    subset_df = monopolar_mni_df[monopolar_mni_df["contact_name"].isin([contact1, contact2])]
+    if len(subset_df) != 2:
+        logging.error("Unable to find monopolars for subject %s, contact %s" % (subject, bipolar_contact))
+        return None
+
+    x_coord = subset_df["x"].sum() / 2.0
+    y_coord = subset_df["y"].sum() / 2.0
+    z_coord = subset_df["z"].sum() / 2.0
+    volume = subset_df["volume"].values[0]
+
+    # Build single-row dataframe
+    single_contact_df = pd.DataFrame(data={
+        "x": [x_coord],
+        "y": [y_coord],
+        "z": [z_coord],
+        "t": [0],
+        "label": [0],
+        "mass": [0],
+        "volume": [volume],
+        "count": [1]
+    }, columns=["x","y", "z", "t", "label", "mass", "volume", "count"])
+
+    return single_contact_df
 
 def CT_transform(imagedir, workdir, warp_file, affine_transform_file, subject, stim_subject):
     subprocess.run('~sudas/bin/ants/antsApplyTransformsToPoints -d 3 -i ' + \

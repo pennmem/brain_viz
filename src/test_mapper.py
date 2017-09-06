@@ -79,6 +79,22 @@ def test_save_mni_coords():
 
     return
 
+def test_save_mni_coords_custom_bipolar():
+    subject = "R1291M_1"
+    stim_subject = "R1042M"
+    basedir, workdir, baselinedir, imagedir = setup_directories(subject)
+    mni_df = mapper.load_mni_coords(stim_subject)
+    assert len(mni_df) > 0
+
+    bipolar_contact = "RTG55 - RTG63"
+    mapper.save_mni_mid_coordinates(workdir, stim_subject, mni_df, bipolar_contact)
+
+    outfile = stim_subject + "_electrode_coordinates_mni_mid.csv"
+    assert os.path.exists(workdir + outfile)
+
+    return
+
+
 def test_CT_transform():
     subject = "R1291M_1"
     stim_subject = "R1001P"
