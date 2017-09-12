@@ -11,7 +11,7 @@ import pandas as pd
 base_query_url = "http://rhino2.psych.upenn.edu:8080/explorer/{}/stream?format=csv&token=CML"
 
 def build_prior_stim_results_table():
-    """ Build a table containing the resulst from stimulation experiments """
+    """ Build a pandas dataframe containing the resulst from stimulation experiments """
 
     # Executes the 'stimulated_contacts' saved query
     stim_site_df = query_to_df(10)
@@ -42,6 +42,7 @@ def build_prior_stim_results_table():
                                 'x': 'first',
                                 'y': 'first',
                                 'z': 'first',
+                                'montage_num': 'first',
                                 'open_loop': 'first'})
                           .reset_index())
 
@@ -63,7 +64,8 @@ def build_prior_stim_results_table():
                                                         .reset_index()
                                                         .rename(columns={"count_recalled": "num_stim_words"}))
 
-    stim_recall = recall_df[(recall_df["stim_list"] == 1) & (recall_df["recalled"] == 1)][["subject_id", "contact_name", "experiment", "count_recalled"]]
+    stim_recall = recall_df[(recall_df["stim_list"] == 1) &
+                            (recall_df["recalled"] == 1)][["subject_id", "contact_name", "experiment", "count_recalled"]]
     stim_recall = stim_recall.rename(columns={'count_recalled': 'stim_recalled'})
 
     nonstim_words = (recall_df[recall_df["stim_list"] == 0].groupby(by=["subject_id", "contact_name", "experiment"])
@@ -71,11 +73,13 @@ def build_prior_stim_results_table():
                                                            .reset_index()
                                                            .rename(columns={"count_recalled": "num_nonstim_words"}))
 
-    nostim_recall = recall_df[(recall_df["stim_list"] == 0) & (recall_df["recalled"] == 1)][["subject_id", "contact_name", "experiment","count_recalled"]]
+    nostim_recall = recall_df[(recall_df["stim_list"] == 0) &
+                              (recall_df["recalled"] == 1)][["subject_id", "contact_name", "experiment","count_recalled"]]
     nostim_recall = nostim_recall.rename(columns={'count_recalled': 'nostim_recalled'})
     nostim_recall.head()
 
-    deltarec_df = recall_df[["subject_id", "experiment", "contact_name", "x", "y", "z"]].drop_duplicates()
+    deltarec_df = recall_df[["subject_id", "experiment", "contact_name",
+                             "montage_num", "x", "y", "z"]].drop_duplicates()
 
     deltarec_df = deltarec_df.merge(total_words, how='left')
     deltarec_df = deltarec_df.merge(stim_words, how='left')
@@ -92,7 +96,8 @@ def build_prior_stim_results_table():
     # Re-order columns to match what Sandy's script is expecting
     deltarec_df["enhancement"] = (deltarec_df["deltarec"] > 0).map({True: "TRUE", False: "FALSE"})
     deltarec_df = deltarec_df[["subject_id", "contact_name", "experiment",
-                               "deltarec", "enhancement", "x","y","z"]]
+                               "montage_num", "deltarec", "enhancement",
+                               "x","y","z"]]
     deltarec_df["contact_name"] = deltarec_df["contact_name"].apply(fix_contact_name)
 
     return deltarec_df

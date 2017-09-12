@@ -44,12 +44,19 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
     subjects = prior_stim_df["subject_id"].unique()
     for stim_subject in subjects:
         logging.info("Converting coordinates from stim subject {} to subject {}".format(stim_subject, subject))
-        mni_df = load_mni_coords(stim_subject)
-        if mni_df is None:
-            continue # error handled in function
-
         stimulated_bipolars = prior_stim_df[prior_stim_df["subject_id"] == stim_subject]["contact_name"].unique()
         for bipolar_contact in stimulated_bipolars:
+            montage_num = prior_stim_df[(prior_stim_df["subject_id"] == stim_subject) &
+                                        (prior_stim_df["contact_name"] == bipolar_contact)]["montage_num"].values[0]
+
+            # Be sure to load the correct file depending on the montage used
+            updated_subject = stim_subject
+            if montage_num != 0:
+                updated_subject = "_".join([stim_subject, str(int(montage_num))])
+            mni_df = load_mni_coords(updated_subject)
+            if mni_df is None:
+                continue # error handled in function
+
             ret_code = save_mni_mid_coordinates(workdir, stim_subject,
                                                 mni_df, bipolar_contact)
             if ret_code == -1:
@@ -76,6 +83,7 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
     del prior_stim_df['x']
     del prior_stim_df['y']
     del prior_stim_df['z']
+    del prior_stim_df['montage_num']
     prior_stim_df.to_csv(workdir + subject + "_allcords.csv", index=False)
     return
 
@@ -120,12 +128,20 @@ def generate_generic_RAS_file(imagedir, workdir, subject):
     return
 
 def load_mni_coords(subject):
-    mni_file = "/data10/RAM/subjects/{}/imaging/autoloc/electrodelabels_and_coordinates_mni_mid.csv".format(subject)
+    mni_loc = "/data10/RAM/subjects/{}/imaging/autoloc/electrodelabels_and_coordinates_mni_mid.csv"
+    mni_file = mni_loc.format(subject)
     # Some subjects do not have this file built. Gracefully skip them for now
     if os.path.exists(mni_file) == False:
-      logging.error("No mni coordinate file for subject {}".format(subject))
-      return
+        logging.error("No mni coordinate file for subject {}".format(subject))
 
+      # Try loading original file if a different montage is being used
+        original_subject = get_original_subject(subject)
+        if ((original_subject == subject) or
+            (os.path.exists(mni_loc.format(original_subject)) == False)):
+            return
+        else:
+            mni_file = mni_loc.format(original_subject)
+            logging.info("Reverting to original montage mni file for subject %s" % original_subject)
     try:
         mni_df = pd.read_csv(mni_file, header=None)
     except Exception as e:
@@ -157,6 +173,12 @@ def load_mni_coords(subject):
                      "label", "mass", "volume", "count"]]
 
     return mni_df
+
+def get_original_subject(subject):
+    orig_subject = subject
+    if subject.find("_") != -1:
+        orig_subject = subject[:subject.find("_")]
+    return orig_subject
 
 
 def load_monopolar_mni_coords(subject):
