@@ -289,6 +289,7 @@ class BuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
         shutil.copytree(os.getcwd() + "/../iEEG_avg_surface_template/", self.OUTPUT)
         prior_stim_results_df = build_prior_stim_results_table()
         prior_stim_results_df = prior_stim_results_df[prior_stim_results_df["deltarec"].isnull() == False]
+        del prior_stim_results_df["montage_num"] # not needed in this case
 
         stimfile = self.OUTPUT + "prior_stim_locations.csv"
         prior_stim_results_df.to_csv(stimfile, index=False)
