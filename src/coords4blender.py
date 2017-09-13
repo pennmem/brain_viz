@@ -1,79 +1,77 @@
 import os
+import json
 import sys
+import itertools
 import pandas as pd
 
 sys.path.insert(0, "/home1/zduey/ptsa/")
 from ptsa.data.readers import TalReader
 
 
-TALSTRUCT = "/data10/RAM/subjects/{}/tal/{}_talLocs_database_{}.mat"
+LOCALIZATION = "/protocols/r1/subjects/{}/localizations/{}/montages/{}/neuroradiology/current_processed/localization.json"
 
-def save_coords_for_blender(subject, outdir):
-    bipol_reader = TalReader(filename=TALSTRUCT.format(subject, subject, 'bipol'),
-                             struct_type = 'bi')
-    bipol_structs = bipol_reader.read()
+# We need the localization/montage to do this with localization.json files
+def save_coords_for_blender(subject, outdir, localization_file=None):
+    if localization_file is not None:
+        LOCALIZATION = localization_file
+    localization = guess_localization(subject)
+    montage = guess_montage(subject, localization)
+    localization_data = read_json(LOCALIZATION.format(subject, localization, montage))
+    localization_df = json_to_dataframe(localization_data)
+    localization_df["contact_name"] = localization_df["name"]
+    localization_df.loc[localization_df["contact_name"].isnull(),
+                        "contact_name"] = (localization_df.loc[localization_df["contact_name"].isnull(),
+                                                               "names"].apply(monopolars_to_bipolar))
+    localization_df["lead"] = localization_df["contact_name"].apply(lambda x: extract_lead_and_num(x)[0])
+    type_map = get_lead_to_type_mapping(localization_data)
+    localization_df["contact_type"] = localization_df["lead"].map(type_map)
+    localization_df = localization_df[["contact_name", "contact_type",
+                                       "coordinate_spaces.fs.corrected",
+                                       "coordinate_spaces.fs.raw"]]
+    localization_df["x_orig"] = localization_df["coordinate_spaces.fs.raw"].apply(lambda x: x[0])
+    localization_df["y_orig"] = localization_df["coordinate_spaces.fs.raw"].apply(lambda x: x[1])
+    localization_df["z_orig"] = localization_df["coordinate_spaces.fs.raw"].apply(lambda x: x[2])
+    localization_df["x_adj"] = localization_df["coordinate_spaces.fs.corrected"].apply(lambda x: x[0])
+    localization_df["y_adj"] = localization_df["coordinate_spaces.fs.corrected"].apply(lambda x: x[1])
+    localization_df["z_adj"] = localization_df["coordinate_spaces.fs.corrected"].apply(lambda x: x[2])
 
-    mono_reader = TalReader(filename=TALSTRUCT.format(subject, subject, 'monopol'),
-                            struct_type = 'mono')
-    mono_structs = mono_reader.read()
+    orig_df = localization_df[["contact_name", "contact_type", "x_orig", "y_orig", "z_orig"]]
+    orig_df.columns = ["contact_name", "contact_type", "x", "y", "z"]
+    orig_df["atlas"] = "orig"
+ 
+    adj_df = localization_df[["contact_name", "contact_type", "x_adj", "y_adj", "z_adj"]]
+    adj_df.columns = ["contact_name", "contact_type", "x", "y", "z"]
+    adj_df["atlas"] = "dykstra"
 
-    mono_start_df = get_coords(mono_structs, 'monopolar')
-    mono_start_df["contact_name"] = "o" + mono_start_df["contact_name"]
+    final_df = pd.concat([orig_df, adj_df])
+    final_df["is_monopolar"] = final_df["contact_name"].apply(is_monopolar)
+    final_df.loc[final_df["is_monopolar"] == True, "atlas"] = "monopolar_" + final_df.loc[final_df["is_monopolar"] == True, "atlas"]
+    final_df.loc[final_df["is_monopolar"] == False, "atlas"] = "bipolar_" + final_df.loc[final_df["is_monopolar"] == False, "atlas"]
+    final_df = final_df[final_df["atlas"] != "bipolar_orig"]
 
-    mono_adj_df = get_coords(mono_structs, 'monopolar', atlas='Dykstra')
-
-    bipo_adj_df = get_coords(bipol_structs, 'bipolar', atlas='Dykstra')
-
-    all_coord_df = pd.concat([mono_start_df, mono_adj_df, bipo_adj_df])
-    # Scale coordinates
+    # Add 'o' to original monopolar coordinates
+    final_df.loc[final_df["atlas"] == "monopolar_orig",
+                 "contact_name"] = "o" + final_df.loc[final_df["atlas"] == "monopolar_orig",
+                                                      "contact_name"]
+    # Scaling factor
     for col in ['x', 'y', 'z']:
-        all_coord_df[col] = 0.02 * all_coord_df[col]
+        final_df[col] = 0.02 * final_df[col]
 
-    all_coord_df = add_orientation_contact_for_depth_electrodes(all_coord_df)
-    all_coord_df = all_coord_df[["contact_name", "contact_type", "x", "y", "z", "atlas", "orient_to"]]
-    all_coord_df.to_csv(outdir + "/electrode_coordinates.csv", index=False)
+    final_df = add_orientation_contact_for_depth_electrodes(final_df)
+    final_df = final_df[["contact_name", "contact_type", "x", "y", "z", "atlas", "orient_to"]]
+    final_df.to_csv(outdir + "/electrode_coordinates.csv", index=False)
 
-    return
+    return final_df
 
+def is_monopolar(contact_name):
+    if contact_name.find("-") == -1:
+        return True
+    return False
 
-def get_coords(talStruct, elec_type, atlas=None):
-    if atlas is None:
-        df = pd.DataFrame(columns=['contact_name' , 'contact_type', 'x', 'y', 'z'],
-                             data={'contact_name' : talStruct['tagName'],
-                                   'contact_type' : talStruct['eType'],
-                                   'x' : talStruct['indivSurf']['x'],
-                                   'y' : talStruct['indivSurf']['y'],
-                                   'z' : talStruct['indivSurf']['z']}
-                          )
-        df['atlas'] = elec_type + '_orig'
-        return df
+def monopolars_to_bipolar(monopolar_array):
+    return "-".join(monopolar_array)
 
-    # Dykstra coordinates will be empty for subjects with only depths. Use
-    # tal coordinates instead in these cases
-    if (set(talStruct["eType"]) == {"D"}):
-        df = pd.DataFrame(columns=['contact_name' , 'contact_type', 'x', 'y', 'z'],
-                             data={'contact_name' : talStruct['tagName'],
-                                   'contact_type' : talStruct['eType'],
-                                   'x' : talStruct['indivSurf']['x'],
-                                   'y' : talStruct['indivSurf']['y'],
-                                   'z' : talStruct['indivSurf']['z']}
-                          )
-        df['atlas'] = elec_type + '_dykstra'
-        return df
-
-    df = pd.DataFrame(columns=['contact_name' , 'contact_type', 'x', 'y', 'z'],
-                      data={'contact_name' : talStruct['tagName'],
-                            'contact_type' : talStruct['eType'],
-                            'x' : talStruct['indivSurf']['x_' + atlas],
-                            'y' : talStruct['indivSurf']['y_' + atlas],
-                            'z' : talStruct['indivSurf']['z_' + atlas]}
-                     )
-    df['atlas'] = elec_type + '_dykstra'
-
-
-    return df
-
-def extract_group_num(contact_name):
+def extract_lead_and_num(contact_name):
     found_start = False
     if contact_name.find('-') != -1:
         contact_name = contact_name[0 : contact_name.find('-')]
@@ -90,13 +88,61 @@ def extract_group_num(contact_name):
             start_index = name_length - i
         if found_start:
             break
-    group = contact_name[:start_index + 1]
+    lead = contact_name[:start_index + 1]
     num = int(contact_name[start_index + 1:])
-    return group, num
+    return lead, num
+
+def json_to_dataframe(localization_data):
+    leads = localization_data["leads"].values()
+    flat_contact_data = list(itertools.chain(*[x["contacts"] for x in leads]))
+    flat_pairs_data = list(itertools.chain(*[x["pairs"] for x in leads]))
+    all_data = []
+    all_data.append(pd.io.json.json_normalize(flat_contact_data))
+    all_data.append(pd.io.json.json_normalize(flat_pairs_data))
+    combined_df = pd.concat(all_data)
+    return combined_df
+
+def get_lead_to_type_mapping(localization_data):
+    leads = localization_data["leads"].keys()
+    types = [localization_data["leads"][lead]["type"] for lead in leads]
+    type_map = dict(zip(leads, types))
+    return type_map
+
+def guess_localization(subject):
+
+    if subject.find("_") == -1:
+        localization = "0"
+
+    else:
+        tokens = subject.split("_")
+        localization = tokens[-1]
+
+    return localization
+
+def guess_montage(subject, localization):
+    if subject.find("_") == -1:
+        montages = os.listdir("/protocols/r1/subjects/%s/"\
+                              "localizations/%s/montages" %
+                              (subject, localization))
+        montage = montages[0] # just use the first one
+
+    else:
+       tokens = subject.split("_")
+       montage = tokens[-1]
+
+    return montage
+
+
+def read_json(filepath):
+    f = open(filepath, "r")
+    json_data = json.load(f)
+    f.close()
+    return json_data
+
 
 def add_orientation_contact_for_depth_electrodes(all_coord_df):
-    all_coord_df["group"] = all_coord_df["contact_name"].apply(lambda x: extract_group_num(x)[0])
-    all_coord_df["num"] = all_coord_df["contact_name"].apply(lambda x: extract_group_num(x)[1])
+    all_coord_df["group"] = all_coord_df["contact_name"].apply(lambda x: extract_lead_and_num(x)[0])
+    all_coord_df["num"] = all_coord_df["contact_name"].apply(lambda x: extract_lead_and_num(x)[1])
     max_num_df = (all_coord_df.groupby(by=["group"])
                               .agg({"num":max})
                               .reset_index()
