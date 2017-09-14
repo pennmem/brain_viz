@@ -4,10 +4,10 @@ import shutil
 import luigi
 import subprocess
 
-from rerun import RerunnableTask
-from mapper import build_prior_stim_location_mapping
-from deltarec import build_prior_stim_results_table
-from coords4blender import save_coords_for_blender
+from src.rerun import RerunnableTask
+from src.mapper import build_prior_stim_location_mapping
+from src.deltarec import build_prior_stim_results_table
+from src.coords4blender import save_coords_for_blender
 
 
 class SubjectConfig(luigi.Config):
@@ -170,7 +170,7 @@ class GenElectrodeCoordinatesAndNames(SubjectConfig, RerunnableTask):
     """ Creates coordinate files out of MATLAB talstructs """
     def requires(self):
         return SplitCorticalSurface(self.SUBJECT, self.SUBJECT_NUM, self.BASE,
-                                    self.CORTEX, self.CONTACT, self.TAL, 
+                                    self.CORTEX, self.CONTACT, self.TAL,
                                     self.IMAGE,  self.OUTPUT, self.FORCE_RERUN)
 
     def run(self):
