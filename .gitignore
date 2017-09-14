@@ -5,3 +5,5 @@ config/luigi-state.pickle
 logs/
 __pycache__
 */__pycache__/*
+htmlcov/
+.coverage

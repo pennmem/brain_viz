@@ -126,7 +126,7 @@ def test_gen_avg_brain():
     if os.path.exists(output) == True:
         shutil.rmtree(output)
 
-    command = 'PYTHONPATH="../src/" luigi --module pipeline BuildPriorStimAvgBrain --local-scheduler\
+    command = 'PYTHONPATH="/home1/zduey/brain_viz/" luigi --module src.pipeline BuildPriorStimAvgBrain --local-scheduler\
                --AVG-ROI {}\
                --OUTPUT {}'.format(cortex, output)
     subprocess.run(command,
@@ -134,8 +134,8 @@ def test_gen_avg_brain():
                    shell=True,
                    stdout=subprocess.PIPE)
 
-    assert os.path.exists(output + 'iEEG_surface/iEEG_surface.blend')
-    assert os.path.exists(output + 'iEEG_surface/iEEG_surface.bin')
-    assert os.path.exists(output + 'iEEG_surface/iEEG_surface.json')
+    assert os.path.exists(output + 'iEEG_surface.blend')
+    assert os.path.exists(output + 'iEEG_surface.bin')
+    assert os.path.exists(output + 'iEEG_surface.json')
 
     return

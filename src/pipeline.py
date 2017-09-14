@@ -201,7 +201,7 @@ class BuildBlenderSite(SubjectConfig, RerunnableTask):
     """ Creates a single directory site for displaying web-based blender scene """
     def requires(self):
         return [GenElectrodeCoordinatesAndNames(self.SUBJECT, self.SUBJECT_NUM,
-                                                self.BASE, self.CORTEX, 
+                                                self.BASE, self.CORTEX,
                                                 self.CONTACT, self.TAL,
                                                 self.IMAGE, self.OUTPUT,
                                                 self.FORCE_RERUN),
@@ -212,7 +212,7 @@ class BuildBlenderSite(SubjectConfig, RerunnableTask):
 
     def run(self):
         if os.path.exists(self.OUTPUT.format(self.SUBJECT_NUM)) == False:
-            shutil.copytree(os.getcwd() + "/../iEEG_surface_template/", self.OUTPUT.format(self.SUBJECT_NUM))
+            shutil.copytree("/home1/zduey/brain_viz/iEEG_surface_template/", self.OUTPUT.format(self.SUBJECT_NUM))
             os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/axial")
             os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/coronal")
 
@@ -241,7 +241,7 @@ class GenBlenderScene(SubjectConfig, RerunnableTask):
                         "/home1/zduey/brain_viz/iEEG_surface_template/empty.blend",
                         "-b",
                         "--python",
-                        "create_scene.py",
+                        "/home1/zduey/brain_viz/src/create_scene.py",
                         "--",
                         self.SUBJECT,
                         self.SUBJECT_NUM,
@@ -286,7 +286,7 @@ class BuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
         return CanBuildPriorStimAvgBrain(self.OUTPUT, self.AVG_ROI)
 
     def run(self):
-        shutil.copytree(os.getcwd() + "/../iEEG_avg_surface_template/", self.OUTPUT)
+        shutil.copytree("/home1/zduey/brain_viz/iEEG_avg_surface_template/", self.OUTPUT)
         prior_stim_results_df = build_prior_stim_results_table()
         prior_stim_results_df = prior_stim_results_df[prior_stim_results_df["deltarec"].isnull() == False]
         del prior_stim_results_df["montage_num"] # not needed in this case
@@ -300,7 +300,7 @@ class BuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
                         "/home1/zduey/brain_viz/iEEG_surface_template/empty.blend",
                         "-b",
                         "--python",
-                        "create_scene.py",
+                        "/home1/zduey/brain_viz/src/create_scene.py",
                         "--",
                         self.AVG_ROI,
                         self.OUTPUT,
