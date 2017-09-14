@@ -2,7 +2,7 @@ import os
 import numpy as np
 import pandas as pd
 import subprocess
-from coords4blender import save_coords_for_blender, extract_group_num
+from src.coords4blender import save_coords_for_blender, extract_group_num
 
 
 def test_matlab_python_match():

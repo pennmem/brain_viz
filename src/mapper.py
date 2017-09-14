@@ -4,17 +4,17 @@ import sys
 import shutil
 import logging
 import datetime
-import constants
 import subprocess
 import numpy as np
 import pandas as pd
 
-from deltarec import build_prior_stim_results_table
+import src.constants as constants
+from src.deltarec import build_prior_stim_results_table
 
 
 now = datetime.datetime.now()
 now = now.strftime("%Y_%m_%d_%H_%M_%S")
-logging.basicConfig(filename='../logs/contact_mapper_%s.log' % now,
+logging.basicConfig(filename='/home1/zduey/brain_viz/logs/contact_mapper_%s.log' % now,
                     format='[%(levelname)s]: %(asctime)s -- %(message)s',
                     level=logging.INFO,
                     datefmt='%m/%d/%Y %I:%M:%S %p')

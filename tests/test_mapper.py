@@ -1,9 +1,10 @@
 import os
-import constants
 import filecmp
 import numpy as np
 import shutil
-import mapper
+
+import src.constants as constants
+import src.mapper as mapper
 
 
 def setup_directories(subject):
