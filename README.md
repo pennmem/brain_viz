@@ -7,8 +7,8 @@ This repository contains source code for generating web-based 3D brain visualiza
 4. Create the blender scene and required files for the web viewer
 
 The final output can be viewed in two ways:
-1. Access the publicly-available standalone web page for a particular subject: http://memory.psych.upenn.edu/public/reports/r1/subjects/[SUBJECT_NUM]/iEEG_surface/iEEG_surface.html
-2. Access the privately-hosted CML web app from the UPenn network: http://rhino2.psych.upenn.edu:8080/brain/
+1. Access the publicly-available standalone web page for a particular subject (ex: [341](http://memory.psych.upenn.edu/public/reports/r1/subjects/341/reports/iEEG_surface/iEEG_surface.html))
+2. Access the privately-hosted [CML web app](http://rhino2.psych.upenn.edu:8080/brain/) from the UPenn network 
 
 The public and private views use the same underlying data, but the views may be slightly different because the UI for the privately-hosted web app is built dynamically to only display UI elements relevant to the contents of the underlying blender file. For example, if prior stim locations are unavailable for a subject, that UI button will not be displayed. In contrast, the standalone public versions display all UI elements by default.
 
@@ -36,9 +36,7 @@ Once the baseline set of packages are installed, you will need to install PTSA s
 
 
 ## Running
-The easiest way to build a new visualization is through the web application: http://rhino2.psych.upenn.edu:8080/brain/build
-
-However, this option requires that the user be located on the UPenn network and have been provided login credentials for trigger brain visualization builds.
+The easiest way to build a new visualization is through the [web application](http://rhino2.psych.upenn.edu:8080/brain/build). However, this option requires that the user be located on the UPenn network and have been provided login credentials for trigger brain visualization builds.
 
 If all dependencies are successfully installed, the pipeline can be triggered using the luigi CLI. For example, to trigger building a 3D localization visualization for R1001P, you would execute the following from the same directory as the README:
 
@@ -51,8 +49,6 @@ From the same directory as the README:
 2. Include coverage report: ```py.test --cov-report html --cov=brain_viz tests/```
 
 The full testing suite takes between 30 and 40 minutes to run. The primary bottleneck is the functional test of the part in the pipeline where all previous stimulated contact locations are mapped from one subject's space to anothers. To dramatically cut down the testing time, ignore the test_pipeline module.
-
-## Details
 
 ## External Links
 - [Old Instructions for Building Manually](https://memory.psych.upenn.edu/InternalWiki/Electrode_Visualizations_using_Blender_and_Blend4Web)
