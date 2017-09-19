@@ -8,6 +8,6 @@ class RerunnableTask(luigi.Task):
         """ If force-rerun has been passed, always return False so the task will be run """
         if self.FORCE_RERUN:
             return False
-        
+
         complete_status = super(RerunnableTask, self).complete()
         return complete_status

@@ -78,13 +78,13 @@ class FreesurferToWavefront(SubjectConfig, RerunnableTask):
         shutil.move(self.CORTEX.format(self.SUBJECT) + "/lh.pial.asc", self.CORTEX.format(self.SUBJECT) + "/lh.pial.srf")
         shutil.move(self.CORTEX.format(self.SUBJECT) + "/rh.pial.asc", self.CORTEX.format(self.SUBJECT) + "/rh.pial.srf")
 
-        subprocess.run("srf2obj " +
+        subprocess.run("src/srf2obj " +
                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.srf " +
                        "> " +
                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.obj",
                        shell=True)
 
-        subprocess.run("srf2obj " +
+        subprocess.run("src/srf2obj " +
                         self.CORTEX.format(self.SUBJECT) + "/rh.pial.srf " +
                        "> " +
                        self.CORTEX.format(self.SUBJECT) + "/rh.pial.obj",
@@ -154,7 +154,7 @@ class SplitCorticalSurface(SubjectConfig, RerunnableTask):
 
         for hemisphere in ["lh", "rh"]:
             for surface in surf_num_dict.keys():
-                subprocess.run("srf2obj " +
+                subprocess.run("src/srf2obj " +
                                self.CORTEX.format(self.SUBJECT) + "/" + hemisphere + ".pial_roi." + surface + ".srf > " +
                                self.CORTEX.format(self.SUBJECT) + "/" + hemisphere + "." + surf_num_dict[surface],
                                shell=True)
