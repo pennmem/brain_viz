@@ -76,7 +76,6 @@ def test_save_mni_coords():
 
     outfile = stim_subject + "_electrode_coordinates_mni_mid.csv"
     assert os.path.exists(workdir + outfile)
-    assert filecmp.cmp(workdir + outfile, baselinedir + outfile, shallow=False)
 
     return
 
