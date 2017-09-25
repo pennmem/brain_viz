@@ -47,7 +47,7 @@ If all dependencies are successfully installed, the pipeline can be triggered us
 ## Testing
 From the same directory as the README:
 1. Execute all unit and functional tests: ```pytest tests/```
-2. Include coverage report: ```py.test --cov-report html --cov=brain_viz tests/```
+2. Include coverage report: ```pytest tests/ --cov-report html --cov=src ```
 
 The full testing suite takes between 30 and 40 minutes to run. The primary bottleneck is the functional test of the part in the pipeline where all previous stimulated contact locations are mapped from one subject's space to anothers. To dramatically cut down the testing time, ignore the test_pipeline module.
 
