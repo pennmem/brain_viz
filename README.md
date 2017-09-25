@@ -17,6 +17,7 @@ The current pipeline uses the following tools to build the 3D visualizations
 
 - ANTS
 - Freesurfer
+- c3D
 - Octave (to be removed)
 - Blender
 - Blend4Web SDK
