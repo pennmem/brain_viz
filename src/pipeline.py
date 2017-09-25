@@ -9,6 +9,8 @@ from src.mapper import build_prior_stim_location_mapping
 from src.deltarec import build_prior_stim_results_table
 from src.coords4blender import save_coords_for_blender
 
+# Use for building file locations relative to the project root
+PROJECTDIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 class SubjectConfig(luigi.Config):
     """ Genreal Luigi config class for processing single-subject"""
@@ -212,7 +214,7 @@ class BuildBlenderSite(SubjectConfig, RerunnableTask):
 
     def run(self):
         if os.path.exists(self.OUTPUT.format(self.SUBJECT_NUM)) == False:
-            shutil.copytree("/home1/zduey/brain_viz/iEEG_surface_template/", self.OUTPUT.format(self.SUBJECT_NUM))
+            shutil.copytree(PROJECTDIR + "/iEEG_surface_template/", self.OUTPUT.format(self.SUBJECT_NUM))
             os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/axial")
             os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/coronal")
 
@@ -238,10 +240,10 @@ class GenBlenderScene(SubjectConfig, RerunnableTask):
         subject_stimfile = self.BASE.format(self.SUBJECT) + "/prior_stim/" + self.SUBJECT + "_allcords.csv"
         subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
                         "-b",
-                        "/home1/zduey/brain_viz/iEEG_surface_template/empty.blend",
+                        PROJECTDIR + "/iEEG_surface_template/empty.blend",
                         "-b",
                         "--python",
-                        "/home1/zduey/brain_viz/src/create_scene.py",
+                        PROJECTDIR + "/src/create_scene.py",
                         "--",
                         self.SUBJECT,
                         self.SUBJECT_NUM,
@@ -286,7 +288,7 @@ class BuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
         return CanBuildPriorStimAvgBrain(self.OUTPUT, self.AVG_ROI)
 
     def run(self):
-        shutil.copytree("/home1/zduey/brain_viz/iEEG_avg_surface_template/", self.OUTPUT)
+        shutil.copytree(PROJECTDIR + "/iEEG_avg_surface_template/", self.OUTPUT)
         prior_stim_results_df = build_prior_stim_results_table()
         prior_stim_results_df = prior_stim_results_df[prior_stim_results_df["deltarec"].isnull() == False]
         del prior_stim_results_df["montage_num"] # not needed in this case
@@ -297,10 +299,10 @@ class BuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
         # run subprocess to generate the blender scene
         subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
                         "-b",
-                        "/home1/zduey/brain_viz/iEEG_surface_template/empty.blend",
+                        PROJECTDIR + "/iEEG_surface_template/empty.blend",
                         "-b",
                         "--python",
-                        "/home1/zduey/brain_viz/src/create_scene.py",
+                        PROJECTDIR + "/src/create_scene.py",
                         "--",
                         self.AVG_ROI,
                         self.OUTPUT,

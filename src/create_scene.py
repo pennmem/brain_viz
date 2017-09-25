@@ -6,9 +6,6 @@ import logging
 
 bpy.ops.wm.addon_enable(module='blend4web')
 
-# Maintain a blacklist for subjects that have problematic stim locations
-SUBJECT_BLACKLIST = ["R1027J"]
-
 
 def gen_blender_scene(cortexdir, outputdir, priorstimdir, contactdir=None, subject=None, subject_num=None):
     update_world_settings()
@@ -210,8 +207,6 @@ def add_prior_stim_sites(filepath):
         next(f) # skip header
         for line in f:
             subject, contact, experiment, deltarec, enhancement, x, y, z = line.split(',')
-            if subject in SUBJECT_BLACKLIST:
-               continue # skip blacklisted subjects 
             x = 0.02 * float(x)
             y = 0.02 * float(y)
             z = 0.02 * float(z)

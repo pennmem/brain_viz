@@ -148,9 +148,11 @@ def test_get_fs_vector():
 
     return
 
-def build_prior_stim_location_mapping():
+def test_build_prior_stim_location_mapping():
     """ Long-running test. Do not run every time. """
-    mapper.build_prior_stim_location_mapping("R1291M_1",
-                                             "/data10/eeg/freesurfer/subjects/R1291M_1/",
-                                             "/data10/RAM/subjects/R1291M_1/imaging/autoloc/")
+    subject = "R1291M_1"
+    basedir, workdir, baselinedir, imagedir = setup_directories(subject)
+    mapper.build_prior_stim_location_mapping(subject,
+                                             basedir,
+                                             "/data10/RAM/subjects/{}/imaging/autoloc/".format(subject))
     return

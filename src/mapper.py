@@ -45,6 +45,10 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
 
     subjects = prior_stim_df["subject_id"].unique()
     for stim_subject in subjects:
+        if stim_subject in constants.SUBJECT_BLACKLIST:
+            logging.info("Skipping {} because they are blacklisted. Updated constants if this is undesired.".format(subject))
+            continue
+
         logging.info("Converting coordinates from stim subject {} to subject {}".format(stim_subject, subject))
         stimulated_bipolars = prior_stim_df[prior_stim_df["subject_id"] == stim_subject]["contact_name"].unique()
         for bipolar_contact in stimulated_bipolars:
