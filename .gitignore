@@ -7,3 +7,5 @@ __pycache__
 */__pycache__/*
 htmlcov/
 .coverage
+.cache/
+**/.cache/*

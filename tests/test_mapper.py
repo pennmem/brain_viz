@@ -1,4 +1,5 @@
 import os
+import pytest
 import filecmp
 import numpy as np
 import shutil
@@ -8,10 +9,10 @@ import src.mapper as mapper
 
 
 def setup_directories(subject):
-    basedir = "/home1/zduey/brain_viz/test_data/{}/".format(subject)
+    basedir = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + "/test_data/{}/".format(subject)
     workdir= basedir + "prior_stim/"
     baselinedir = basedir + "prior_stim_baseline/"
-    imagedir = "/home1/zduey/brain_viz/test_data/{}/imaging/autoloc/".format(subject)
+    imagedir = basedir + "imaging/autoloc/".format(subject)
     return basedir, workdir, baselinedir, imagedir
 
 def cleanup(subject):
@@ -133,9 +134,11 @@ def test_get_fs_vector():
 
     return
 
-def build_prior_stim_location_mapping():
+def test_build_prior_stim_location_mapping():
     """ Long-running test. Do not run every time. """
-    mapper.build_prior_stim_location_mapping("R1291M_1",
-                                             "/data10/eeg/freesurfer/subjects/R1291M_1/",
-                                             "/data10/RAM/subjects/R1291M_1/imaging/autoloc/")
+    subject = "R1291M_1"
+    basedir, workdir, baselinedir, imagedir = setup_directories(subject)
+    mapper.build_prior_stim_location_mapping(subject,
+                                             basedir,
+                                             "/data10/RAM/subjects/{}/imaging/autoloc/".format(subject))
     return
