@@ -8,19 +8,39 @@ import subprocess
 import numpy as np
 import pandas as pd
 
-import src.constants as constants
 from src.deltarec import build_prior_stim_results_table
 
 
-now = datetime.datetime.now()
-now = now.strftime("%Y_%m_%d_%H_%M_%S")
-logging.basicConfig(filename='/home1/zduey/brain_viz/logs/contact_mapper_%s.log' % now,
-                    format='[%(levelname)s]: %(asctime)s -- %(message)s',
-                    level=logging.INFO,
-                    datefmt='%m/%d/%Y %I:%M:%S %p')
+# Module level globals. 
+CH2 = "~sudas/DARPA/ch2.nii.gz"
+RDIR = "~sudas/bin/localization/template_to_NickOasis"
+GENERIC_AFFINE_TRANSFORM_FILE = RDIR + "/ch22t0GenericAffine.mat"
+WARP_FILE = RDIR + "/ch22t1Warp.nii.gz"
+
+# List of subjects to ignore for prior stim locations
+SUBJECT_BLACKLIST = ["R1027J"]
 
 
 def build_prior_stim_location_mapping(subject, basedir, imagedir):
+    """ Converts prior stim locations into a given subject's space
+
+    This function is the entrypoint to the script and calls the helper
+    functions defined in this module.
+
+    Parameters
+    ----------
+    subject: str
+        Subject identifyer indicating the target subject for the mapping
+
+    basedir: str
+        Filepath of where the
+
+    imagedir: str
+        Filepath where data based on MRI/CT imaging can be found
+
+    """
+
+    start_logging()
     if os.path.exists(imagedir) == False:
         msg = "autloc folder for {} does not exist".format(subject)
         logging.error(msg)
@@ -43,7 +63,7 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
 
     subjects = prior_stim_df["subject_id"].unique()
     for stim_subject in subjects:
-        if stim_subject in constants.SUBJECT_BLACKLIST:
+        if stim_subject in SUBJECT_BLACKLIST:
             logging.info("Skipping {} because they are blacklisted. Updated constants if this is undesired.".format(subject))
             continue
 
@@ -65,8 +85,8 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
                                                 mni_df, bipolar_contact)
             if ret_code == -1:
                 continue # skip if issues were encountered
-            T1_transform(imagedir, workdir, constants.WARP_FILE,
-                         constants.GENERIC_AFFINE_TRANSFORM_FILE, subject,
+            T1_transform(imagedir, workdir, WARP_FILE,
+                         GENERIC_AFFINE_TRANSFORM_FILE, subject,
                          stim_subject)
             fs_coords = get_fs_vector(workdir, subject, stim_subject, Norig, Torig)
 
@@ -92,11 +112,22 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
     return
 
 
+def start_logging():
+    """ Create a log file for debugging purposes """
+    now = datetime.datetime.now()
+    now = now.strftime("%Y_%m_%d_%H_%M_%S")
+    basedir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    logging.basicConfig(filename=(basedir + "/logs/contact_mapper_%s.log" % now),
+                        format='[%(levelname)s]: %(asctime)s -- %(message)s',
+                        level=logging.INFO,
+                        datefmt='%m/%d/%Y %I:%M:%S %p')
+    return
+
 def initialize(subject, workdir, imagedir):
     if os.path.exists(workdir) == False:
         os.mkdir(workdir)
 
-    subprocess.run("c3d " + constants.CH2 + " -scale 0 -o " + workdir + subject +\
+    subprocess.run("c3d " + CH2 + " -scale 0 -o " + workdir + subject +\
                    "_stimdeltarec_mni.nii.gz",
                    shell=True)
 
@@ -132,6 +163,16 @@ def generate_generic_RAS_file(imagedir, workdir, subject):
     return
 
 def load_mni_coords(subject):
+    """ Load mni coordinates for bipolar pairs
+
+    If a file cannot be found for the given subject and the subjecet has
+    multiple montages, a previous montage will be loaded. For example, if
+    the file does not exist for R1291M_1, then the file for R1291M will be
+    loaded. If an error is encountered while attempting to load the file,
+    an error will be logged. If the file is improperly formatted, an error
+    will also be logged.
+
+    """
     mni_loc = "/data10/RAM/subjects/{}/imaging/autoloc/electrodelabels_and_coordinates_mni_mid.csv"
     mni_file = mni_loc.format(subject)
     # Some subjects do not have this file built. Gracefully skip them for now
