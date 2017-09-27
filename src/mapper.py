@@ -174,12 +174,17 @@ def get_mni_coords(subject):
 
     # If the adjusted mni file is missing and the unajusted is not, the
     # subject has only depth electrodes, so just use the unajusted coordinates
-    elif (orig_mni_df is not None) & (adj_mni_df is None):
+    elif ((orig_mni_df is not None) & (adj_mni_df is None)):
         logging.info("Missing ajusted mni file, but unajusted coordinates found. Using unadjusted coordinates.")
         mni_df = orig_mni_df[["subject_id", "contact_name", "orig_x", "orig_y",
                               "orig_z", "t", "label", "mass", "volume", "count"]]
         mni_df = mni_df.rename(columns={"orig_x": "x", "orig_y":"y", "orig_z":"z"})
 
+    # There are varialbes in the original file that are not in the adjusted file
+    # so if the original is missing, we cannot proceed
+    elif ((orig_mni_df is None) and (adj_mni_df is not None)):
+        logging.error("No original mni coordinate file for {}".format(subject))
+        return
     # Merge unajusted and adjusted files to get full set of variables needed for ANTS
     # lable, mass, volume, and count are in the unajusted file, but not the adjusted
     else:
@@ -241,7 +246,7 @@ def load_adj_mni_coords(subject):
     mni_file = mni_loc.format(subject)
     # Some subjects do not have this file built. Gracefully skip them for now
     if os.path.exists(mni_file) == False:
-        logging.error("No update mni coordinate file for subject {}".format(subject))
+        logging.error("No updated mni coordinate file for subject {}".format(subject))
         # Try loading original file if a different montage is being used
         original_subject = get_original_subject(subject)
         if ((original_subject == subject) or
