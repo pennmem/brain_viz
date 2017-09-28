@@ -9,6 +9,8 @@ from src.mapper import build_prior_stim_location_mapping
 from src.deltarec import build_prior_stim_results_table
 from src.coords4blender import save_coords_for_blender
 
+# Use for building file locations relative to the project root
+PROJECTDIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 class SubjectConfig(luigi.Config):
     """ Genreal Luigi config class for processing single-subject"""
@@ -68,27 +70,31 @@ class FreesurferToWavefront(SubjectConfig, RerunnableTask):
         shutil.copy(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot", self.CORTEX.format(self.SUBJECT))
 
         subprocess.run("mris_convert " +
-                        self.CORTEX.format(self.SUBJECT) + "/lh.pial " +
-                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.asc",
-                       shell=True)
+                       self.CORTEX.format(self.SUBJECT) + "/lh.pial " +
+                       self.CORTEX.format(self.SUBJECT) + "/lh.pial.asc",
+                       shell=True,
+                       check=True)
         subprocess.run("mris_convert " +
                        self.CORTEX.format(self.SUBJECT) + "/rh.pial " +
                        self.CORTEX.format(self.SUBJECT) + "/rh.pial.asc",
-                       shell=True)
+                       shell=True,
+                       check=True)
         shutil.move(self.CORTEX.format(self.SUBJECT) + "/lh.pial.asc", self.CORTEX.format(self.SUBJECT) + "/lh.pial.srf")
         shutil.move(self.CORTEX.format(self.SUBJECT) + "/rh.pial.asc", self.CORTEX.format(self.SUBJECT) + "/rh.pial.srf")
 
-        subprocess.run("srf2obj " +
+        subprocess.run("src/srf2obj " +
                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.srf " +
                        "> " +
                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.obj",
-                       shell=True)
+                       shell=True,
+                       check=True)
 
-        subprocess.run("srf2obj " +
+        subprocess.run("src/srf2obj " +
                         self.CORTEX.format(self.SUBJECT) + "/rh.pial.srf " +
                        "> " +
                        self.CORTEX.format(self.SUBJECT) + "/rh.pial.obj",
-                       shell=True)
+                       shell=True,
+                       check=True)
 
         return
 
@@ -108,12 +114,10 @@ class SplitCorticalSurface(SubjectConfig, RerunnableTask):
     def run(self):
         codedir = os.getcwd() # code directory
         os.chdir(self.CORTEX.format(self.SUBJECT))
-        subprocess.run("matlab -r 'annot2dpv lh.aparc.annot lh.aparc.annot.dpv;"\
-                       "annot2dpv rh.aparc.annot rh.aparc.annot.dpv;"\
-                       "splitsrf lh.pial.srf lh.aparc.annot.dpv lh.pial_roi;"\
-                       "splitsrf rh.pial.srf rh.aparc.annot.dpv rh.pial_roi;"\
-                       "exit;'",
-                       shell=True)
+        subprocess.run(codedir + "/bin/annot2dpv lh.aparc.annot lh.aparc.annot.dpv", shell=True, check=True)
+        subprocess.run(codedir + "/bin/annot2dpv rh.aparc.annot rh.aparc.annot.dpv", shell=True, check=True)
+        subprocess.run(codedir + "/bin/splitsrf lh.pial.srf lh.aparc.annot.dpv lh.pial_roi", shell=True, check=True)
+        subprocess.run(codedir + "/bin/splitsrf rh.pial.srf rh.aparc.annot.dpv rh.pial_roi", shell=True, check=True)
         os.chdir(codedir)
 
         surf_num_dict = {"0001":"Unmeasured.obj",
@@ -154,10 +158,11 @@ class SplitCorticalSurface(SubjectConfig, RerunnableTask):
 
         for hemisphere in ["lh", "rh"]:
             for surface in surf_num_dict.keys():
-                subprocess.run("srf2obj " +
+                subprocess.run("src/srf2obj " +
                                self.CORTEX.format(self.SUBJECT) + "/" + hemisphere + ".pial_roi." + surface + ".srf > " +
                                self.CORTEX.format(self.SUBJECT) + "/" + hemisphere + "." + surf_num_dict[surface],
-                               shell=True)
+                               shell=True,
+                               check=True)
         return
 
     def output(self):
@@ -201,7 +206,7 @@ class BuildBlenderSite(SubjectConfig, RerunnableTask):
     """ Creates a single directory site for displaying web-based blender scene """
     def requires(self):
         return [GenElectrodeCoordinatesAndNames(self.SUBJECT, self.SUBJECT_NUM,
-                                                self.BASE, self.CORTEX, 
+                                                self.BASE, self.CORTEX,
                                                 self.CONTACT, self.TAL,
                                                 self.IMAGE, self.OUTPUT,
                                                 self.FORCE_RERUN),
@@ -212,7 +217,7 @@ class BuildBlenderSite(SubjectConfig, RerunnableTask):
 
     def run(self):
         if os.path.exists(self.OUTPUT.format(self.SUBJECT_NUM)) == False:
-            shutil.copytree(os.getcwd() + "/../iEEG_surface_template/", self.OUTPUT.format(self.SUBJECT_NUM))
+            shutil.copytree(PROJECTDIR + "/iEEG_surface_template/", self.OUTPUT.format(self.SUBJECT_NUM))
             os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/axial")
             os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/coronal")
 
@@ -238,17 +243,18 @@ class GenBlenderScene(SubjectConfig, RerunnableTask):
         subject_stimfile = self.BASE.format(self.SUBJECT) + "/prior_stim/" + self.SUBJECT + "_allcords.csv"
         subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
                         "-b",
-                        "/home1/zduey/brain_viz/iEEG_surface_template/empty.blend",
+                        PROJECTDIR + "/iEEG_surface_template/empty.blend",
                         "-b",
                         "--python",
-                        "create_scene.py",
+                        PROJECTDIR + "/src/create_scene.py",
                         "--",
                         self.SUBJECT,
                         self.SUBJECT_NUM,
                         self.CORTEX.format(self.SUBJECT),
                         self.CONTACT.format(self.SUBJECT),
                         self.OUTPUT.format(self.SUBJECT_NUM),
-                        subject_stimfile])
+                        subject_stimfile],
+                       check=True)
         return
 
     def output(self):
@@ -286,7 +292,7 @@ class BuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
         return CanBuildPriorStimAvgBrain(self.OUTPUT, self.AVG_ROI)
 
     def run(self):
-        shutil.copytree(os.getcwd() + "/../iEEG_avg_surface_template/", self.OUTPUT)
+        shutil.copytree(PROJECTDIR + "/iEEG_avg_surface_template/", self.OUTPUT)
         prior_stim_results_df = build_prior_stim_results_table()
         prior_stim_results_df = prior_stim_results_df[prior_stim_results_df["deltarec"].isnull() == False]
         del prior_stim_results_df["montage_num"] # not needed in this case
@@ -297,14 +303,15 @@ class BuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
         # run subprocess to generate the blender scene
         subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
                         "-b",
-                        "/home1/zduey/brain_viz/iEEG_surface_template/empty.blend",
+                        PROJECTDIR + "/iEEG_surface_template/empty.blend",
                         "-b",
                         "--python",
-                        "create_scene.py",
+                        PROJECTDIR + "/src/create_scene.py",
                         "--",
                         self.AVG_ROI,
                         self.OUTPUT,
-                        stimfile])
+                        stimfile],
+                       check=True)
 
         return
 

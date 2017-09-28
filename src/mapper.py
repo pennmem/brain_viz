@@ -8,19 +8,39 @@ import subprocess
 import numpy as np
 import pandas as pd
 
-import src.constants as constants
 from src.deltarec import build_prior_stim_results_table
 
 
-now = datetime.datetime.now()
-now = now.strftime("%Y_%m_%d_%H_%M_%S")
-logging.basicConfig(filename='/home1/zduey/brain_viz/logs/contact_mapper_%s.log' % now,
-                    format='[%(levelname)s]: %(asctime)s -- %(message)s',
-                    level=logging.INFO,
-                    datefmt='%m/%d/%Y %I:%M:%S %p')
+# Module level globals. 
+CH2 = "~sudas/DARPA/ch2.nii.gz"
+RDIR = "~sudas/bin/localization/template_to_NickOasis"
+GENERIC_AFFINE_TRANSFORM_FILE = RDIR + "/ch22t0GenericAffine.mat"
+WARP_FILE = RDIR + "/ch22t1Warp.nii.gz"
+
+# List of subjects to ignore for prior stim locations
+SUBJECT_BLACKLIST = ["R1027J"]
 
 
 def build_prior_stim_location_mapping(subject, basedir, imagedir):
+    """ Converts prior stim locations into a given subject's space
+
+    This function is the entrypoint to the script and calls the helper
+    functions defined in this module.
+
+    Parameters
+    ----------
+    subject: str
+        Subject identifyer indicating the target subject for the mapping
+
+    basedir: str
+        Filepath of where the
+
+    imagedir: str
+        Filepath where data based on MRI/CT imaging can be found
+
+    """
+
+    start_logging()
     if os.path.exists(imagedir) == False:
         msg = "autloc folder for {} does not exist".format(subject)
         logging.error(msg)
@@ -37,12 +57,17 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
 
     logging.info("Getting prior stim results")
     prior_stim_df = build_prior_stim_results_table()
+    prior_stim_df["contact_name"] = prior_stim_df["contact_name"].apply(standardize)
     prior_stim_df["fs_x"] = np.nan
     prior_stim_df["fs_y"] = np.nan
     prior_stim_df["fs_z"] = np.nan
 
     subjects = prior_stim_df["subject_id"].unique()
     for stim_subject in subjects:
+        if stim_subject in SUBJECT_BLACKLIST:
+            logging.info("Skipping {} because they are blacklisted. Updated the blacklist if this is undesired.".format(subject))
+            continue
+
         logging.info("Converting coordinates from stim subject {} to subject {}".format(stim_subject, subject))
         stimulated_bipolars = prior_stim_df[prior_stim_df["subject_id"] == stim_subject]["contact_name"].unique()
         for bipolar_contact in stimulated_bipolars:
@@ -53,7 +78,7 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
             updated_subject = stim_subject
             if montage_num != 0:
                 updated_subject = "_".join([stim_subject, str(int(montage_num))])
-            mni_df = load_mni_coords(updated_subject)
+            mni_df = get_mni_coords(updated_subject)
             if mni_df is None:
                 continue # error handled in function
 
@@ -61,8 +86,8 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
                                                 mni_df, bipolar_contact)
             if ret_code == -1:
                 continue # skip if issues were encountered
-            T1_transform(imagedir, workdir, constants.WARP_FILE,
-                         constants.GENERIC_AFFINE_TRANSFORM_FILE, subject,
+            T1_transform(imagedir, workdir, WARP_FILE,
+                         GENERIC_AFFINE_TRANSFORM_FILE, subject,
                          stim_subject)
             fs_coords = get_fs_vector(workdir, subject, stim_subject, Norig, Torig)
 
@@ -88,11 +113,22 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
     return
 
 
+def start_logging():
+    """ Create a log file for debugging purposes """
+    now = datetime.datetime.now()
+    now = now.strftime("%Y_%m_%d_%H_%M_%S")
+    basedir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    logging.basicConfig(filename=(basedir + "/logs/contact_mapper_%s.log" % now),
+                        format='[%(levelname)s]: %(asctime)s -- %(message)s',
+                        level=logging.INFO,
+                        datefmt='%m/%d/%Y %I:%M:%S %p')
+    return
+
 def initialize(subject, workdir, imagedir):
     if os.path.exists(workdir) == False:
         os.mkdir(workdir)
 
-    subprocess.run("c3d " + constants.CH2 + " -scale 0 -o " + workdir + subject +\
+    subprocess.run("c3d " + CH2 + " -scale 0 -o " + workdir + subject +\
                    "_stimdeltarec_mni.nii.gz",
                    shell=True)
 
@@ -127,14 +163,45 @@ def generate_generic_RAS_file(imagedir, workdir, subject):
                    shell=True)
     return
 
-def load_mni_coords(subject):
+def get_mni_coords(subject):
+    orig_mni_df = load_orig_mni_coords(subject)
+    adj_mni_df = load_adj_mni_coords(subject)
+
+    # Cannot do anything if both files are missing
+    if ((orig_mni_df is None) and (adj_mni_df is None)):
+        logging.error("Unable to acquire adjusted coordinates for subject {}".format(subject))
+        return
+
+    # If the adjusted mni file is missing and the unajusted is not, the
+    # subject has only depth electrodes, so just use the unajusted coordinates
+    elif ((orig_mni_df is not None) & (adj_mni_df is None)):
+        logging.info("Missing ajusted mni file, but unajusted coordinates found. Using unadjusted coordinates.")
+        mni_df = orig_mni_df[["subject_id", "contact_name", "orig_x", "orig_y",
+                              "orig_z", "t", "label", "mass", "volume", "count"]]
+        mni_df = mni_df.rename(columns={"orig_x": "x", "orig_y":"y", "orig_z":"z"})
+
+    # There are varialbes in the original file that are not in the adjusted file
+    # so if the original is missing, we cannot proceed
+    elif ((orig_mni_df is None) and (adj_mni_df is not None)):
+        logging.error("No original mni coordinate file for {}".format(subject))
+        return
+    # Merge unajusted and adjusted files to get full set of variables needed for ANTS
+    # lable, mass, volume, and count are in the unajusted file, but not the adjusted
+    else:
+        mni_df = pd.merge(adj_mni_df, orig_mni_df, how='left', on=['subject_id', 'contact_name'])
+        mni_df = mni_df[["subject_id", "contact_name", "x", "y", "z", "t",
+                         "label", "mass", "volume", "count"]]
+    return mni_df
+
+
+def load_orig_mni_coords(subject):
     mni_loc = "/data10/RAM/subjects/{}/imaging/autoloc/electrodelabels_and_coordinates_mni_mid.csv"
     mni_file = mni_loc.format(subject)
     # Some subjects do not have this file built. Gracefully skip them for now
     if os.path.exists(mni_file) == False:
         logging.error("No mni coordinate file for subject {}".format(subject))
 
-      # Try loading original file if a different montage is being used
+        # Try loading original file if a different montage is being used
         original_subject = get_original_subject(subject)
         if ((original_subject == subject) or
             (os.path.exists(mni_loc.format(original_subject)) == False)):
@@ -156,9 +223,9 @@ def load_mni_coords(subject):
 
     mni_df = mni_df.rename(columns={0:'contact_name',
                                     1:'?',
-                                    2:'x',
-                                    3:'y',
-                                    4:'z',
+                                    2:'orig_x',
+                                    3:'orig_y',
+                                    4:'orig_z',
                                     5:'t',
                                     6:'label',
                                     7:'mass',
@@ -166,13 +233,51 @@ def load_mni_coords(subject):
                                     9:'count'})
     del mni_df["?"]
 
-    # Convert contact names to uppercase for consistency
-    mni_df["contact_name"] = mni_df["contact_name"].apply(lambda x: x.upper())
+    # Standardize the contact names
+    mni_df["contact_name"] = mni_df["contact_name"].apply(standardize)
 
-    mni_df = mni_df[["subject_id", "contact_name", "x", "y", "z", "t",
+    mni_df = mni_df[["subject_id", "contact_name", "orig_x", "orig_y", "orig_z", "t",
                      "label", "mass", "volume", "count"]]
 
     return mni_df
+
+def load_adj_mni_coords(subject):
+    mni_loc = "/data10/RAM/subjects/{}/imaging/autoloc/monopolar_bipolar_updated_mni.csv"
+    mni_file = mni_loc.format(subject)
+    # Some subjects do not have this file built. Gracefully skip them for now
+    if os.path.exists(mni_file) == False:
+        logging.error("No updated mni coordinate file for subject {}".format(subject))
+        # Try loading original file if a different montage is being used
+        original_subject = get_original_subject(subject)
+        if ((original_subject == subject) or
+            (os.path.exists(mni_loc.format(original_subject)) == False)):
+            return
+        else:
+            mni_file = mni_loc.format(original_subject)
+            logging.info("Reverting to original montage adjusted mni file for subject %s" % original_subject)
+
+    try:
+        mni_df = pd.read_csv(mni_file, header=None)
+    except Exception as e:
+        logging.exception("Error loading adjusted mni coordinate files for subject {}".format(subject), exc_info=e)
+        return
+
+    mni_df["subject_id"] = subject
+
+    if len(mni_df.columns) != 5:
+        logging.error("Invalid adjusted mni coordinate file for subject {}".format(subject))
+        return
+
+    mni_df = mni_df.rename(columns={0:'contact_name',
+                                    1:'x',
+                                    2:'y',
+                                    3:'z'})
+    # Convert contact names to uppercase for consistency
+    mni_df["contact_name"] = mni_df["contact_name"].apply(standardize)
+
+    mni_df = mni_df[["subject_id", "contact_name", "x", "y", "z"]]
+    return mni_df
+
 
 def get_original_subject(subject):
     orig_subject = subject
@@ -210,8 +315,8 @@ def load_monopolar_mni_coords(subject):
                                     7:'volume',
                                     8:'count'})
 
-    # Convert contact names to uppercase for consistency
-    mni_df["contact_name"] = mni_df["contact_name"].apply(lambda x: x.upper())
+    # Standardize the contact name 
+    mni_df["contact_name"] = mni_df["contact_name"].apply(standardize)
 
     mni_df = mni_df[["subject_id", "contact_name", "x", "y", "z", "t",
                      "label", "mass", "volume", "count"]]
@@ -222,6 +327,7 @@ def load_monopolar_mni_coords(subject):
 def save_mni_mid_coordinates(workdir, subject, mni_df, bipolar_contact):
     single_contact_df = mni_df[mni_df["contact_name"] == bipolar_contact]
     if len(single_contact_df) == 0:
+        logging.info("{} not found in underlying file. Creating coordinates manually from monopolars".format(bipolar_contact))
         single_contact_df = build_custom_bipolar(subject, mni_df, bipolar_contact)
         # Break here if unable to track down the contact
         if single_contact_df is None:
@@ -237,7 +343,7 @@ def save_mni_mid_coordinates(workdir, subject, mni_df, bipolar_contact):
 
 
 def build_custom_bipolar(subject, mni_df, bipolar_contact):
-    """ For non-consecutive contacts, create the mni_mid coordinates manually """
+    """ For non-consecutive contacts, create the mni_mid coordinates manually by loading the monopolar mni file """
     monopolar_mni_df = load_monopolar_mni_coords(subject)
     contact_tokens = bipolar_contact.split('-')
     contact1 = contact_tokens[0].strip()
@@ -302,3 +408,47 @@ def get_fs_vector(workdir, subject, stim_subject, Norig, Torig):
     coords = np.append(coords, [1])
     fscoords = np.dot(np.dot(Torig, np.linalg.inv(Norig)), coords)
     return fscoords
+
+def standardize(electrode_name):
+    """ Standardizes a given electrode name
+
+    Given either a monopolar or bipolar electrode contact name, returns the name in a standardized format:
+        1. All uppercase characters
+        2. No whitespace
+        3. No leading zeros for lead numbers
+
+    Parameters
+    ----------
+    electrode_name: str
+        The electrode name to be standardized
+
+    Returns
+    -------
+    final_electrode_name: str
+        The standardized electrode name
+
+    Notes
+    -----
+    Makes it easier to compare contact names that are stored inconsistently
+
+    """
+    # Remove whitepsace characters
+    electrode_name = ''.join(electrode_name.split())
+
+    # Use recursion for bipolars
+    if electrode_name.find("-") != -1:
+        tokens = electrode_name.split("-")
+        left = standardize(tokens[0])
+        right = standardize(tokens[1])
+        return "-".join([left, right])
+
+    final_electrode_name = electrode_name
+
+    # Some contacts have a leading 0 (LAD01), so remove it
+    if electrode_name[-2] == "0":
+        final_electrode_name = electrode_name[:-2] + electrode_name[-1]
+
+    # All characters should be uppercase 
+    final_electrode_name = final_electrode_name.upper()
+
+    return final_electrode_name

@@ -1,18 +1,35 @@
-"""
-Builds a table containing the previously stimulated contacts
-"""
-
 import io
 import os
 import requests
 import pandas as pd
 
 
-base_query_url = "http://rhino2.psych.upenn.edu:8080/explorer/{}/stream?format=csv&token=CML"
+BASE_QUERY_URL = "http://rhino2.psych.upenn.edu:8080/explorer/{}/stream?format=csv&token=CML"
 
 def build_prior_stim_results_table():
-    """ Build a pandas dataframe containing the resulst from stimulation experiments """
+    """ Build the standard "delta memory" table using the events/loclization database
 
+    Running this script requires that the CML web app be runnning on port 8080
+    so that queries stored in the SQL explorer application can be run. Alternatively,
+    a direct database connection could be used. If the database is deprecated in the future,
+    only the 'get_data' function would need to be changed.
+
+    Returns
+    --------
+    pandas.DataFrame
+        Dataframe containing the deltarec information.
+
+        Variable Descriptions:
+        subject_id: Subject identifier
+        contact_name: Name of the bipolar contact used for stimulation
+        montage_num: Montage number associated with the stimulation
+        deltarec: Standardized measure of change in recall:
+            100 *([(Stim List Mean Proportion Recall) - (NoStim List Mean Proportion Recall) ]/
+                   overall proportion recall for a particular task)
+        enhancement: Boolean indicating if deltarecall was positive
+        x,y,z: Coordinates of the stimulated contacts using the internal average brain
+
+    """
     # Executes the 'stimulated_contacts' saved query
     stim_site_df = query_to_df(10)
 
@@ -104,9 +121,21 @@ def build_prior_stim_results_table():
 
 
 def query_to_df(query_num):
-    """ Request the results of a saved query as a dataframe """
+    """ Request the results of a saved query as a dataframe
 
-    resp = requests.get(base_query_url.format(str(query_num)))
+    Parameters
+    ----------
+    query_num: int
+        Number assigned to a query stored in the explorer application
+
+    Returns
+    -------
+    df: pandas.DataFrame
+        Dataframe containing the query result set
+
+    """
+
+    resp = requests.get(BASE_QUERY_URL.format(str(query_num)))
     data = io.BytesIO(resp.content)
     df = pd.read_csv(data)
 

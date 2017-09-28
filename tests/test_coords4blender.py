@@ -5,6 +5,7 @@ import subprocess
 
 from src.coords4blender import save_coords_for_blender, extract_lead_and_num
 
+
 def test_extract_lead_and_num():
     assert extract_lead_and_num("LAD1") == ("LAD", 1)
     assert extract_lead_and_num("LAD41") == ("LAD", 41)
@@ -16,8 +17,10 @@ def test_extract_lead_and_num():
     return
 
 def test_output_produced():
+    subject = "R1338T"
+    basedir = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + "/test_data/{}/".format(subject)
     save_coords_for_blender("R1338T",
-                            "/home1/zduey/brain_viz/test_data/R1338T/",
-                            localization_file="/home1/zduey/brain_viz/test_data/R1338T/localization.json")
-    assert os.path.exists("/home1/zduey/brain_viz/test_data/R1338T/electrode_coordinates.csv")
+                            basedir,
+                            localization_file=basedir + "/localization.json")
+    assert os.path.exists(basedir + "electrode_coordinates.csv")
     return

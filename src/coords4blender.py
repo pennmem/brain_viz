@@ -3,8 +3,6 @@ import json
 import sys
 import itertools
 import pandas as pd
-
-sys.path.insert(0, "/home1/zduey/ptsa/")
 from ptsa.data.readers import TalReader
 
 

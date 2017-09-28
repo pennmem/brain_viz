@@ -1,8 +1,11 @@
+import os
 import sys
 import bpy
 import glob
+import logging
 
 bpy.ops.wm.addon_enable(module='blend4web')
+
 
 def gen_blender_scene(cortexdir, outputdir, priorstimdir, contactdir=None, subject=None, subject_num=None):
     update_world_settings()
@@ -154,7 +157,11 @@ def orient_contacts(contactpath):
             if (_type.find("D") == -1):
                 orient_towards(bpy.data.objects[name], bpy.data.objects["Empty"])
             elif ((_type.find("D") != -1) & (orient_contact != '')):
-                orient_towards(bpy.data.objects[name], bpy.data.objects[orient_contact])
+                try:
+                    orient_towards(bpy.data.objects[name], bpy.data.objects[orient_contact])
+                except KeyError as e:
+                    logging.error("Unable to find contact %s" % orient_contact)
+                    continue
             else:
                 orient_towards(bpy.data.objects[name], bpy.data.objects["Empty"])
     return
