@@ -70,13 +70,15 @@ class FreesurferToWavefront(SubjectConfig, RerunnableTask):
         shutil.copy(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot", self.CORTEX.format(self.SUBJECT))
 
         subprocess.run("mris_convert " +
-                        self.CORTEX.format(self.SUBJECT) + "/lh.pial " +
-                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.asc",
-                       shell=True)
+                       self.CORTEX.format(self.SUBJECT) + "/lh.pial " +
+                       self.CORTEX.format(self.SUBJECT) + "/lh.pial.asc",
+                       shell=True,
+                       check=True)
         subprocess.run("mris_convert " +
                        self.CORTEX.format(self.SUBJECT) + "/rh.pial " +
                        self.CORTEX.format(self.SUBJECT) + "/rh.pial.asc",
-                       shell=True)
+                       shell=True,
+                       check=True)
         shutil.move(self.CORTEX.format(self.SUBJECT) + "/lh.pial.asc", self.CORTEX.format(self.SUBJECT) + "/lh.pial.srf")
         shutil.move(self.CORTEX.format(self.SUBJECT) + "/rh.pial.asc", self.CORTEX.format(self.SUBJECT) + "/rh.pial.srf")
 
@@ -84,13 +86,15 @@ class FreesurferToWavefront(SubjectConfig, RerunnableTask):
                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.srf " +
                        "> " +
                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.obj",
-                       shell=True)
+                       shell=True,
+                       check=True)
 
         subprocess.run("src/srf2obj " +
                         self.CORTEX.format(self.SUBJECT) + "/rh.pial.srf " +
                        "> " +
                        self.CORTEX.format(self.SUBJECT) + "/rh.pial.obj",
-                       shell=True)
+                       shell=True,
+                       check=True)
 
         return
 
@@ -110,12 +114,10 @@ class SplitCorticalSurface(SubjectConfig, RerunnableTask):
     def run(self):
         codedir = os.getcwd() # code directory
         os.chdir(self.CORTEX.format(self.SUBJECT))
-        subprocess.run("matlab -r 'annot2dpv lh.aparc.annot lh.aparc.annot.dpv;"\
-                       "annot2dpv rh.aparc.annot rh.aparc.annot.dpv;"\
-                       "splitsrf lh.pial.srf lh.aparc.annot.dpv lh.pial_roi;"\
-                       "splitsrf rh.pial.srf rh.aparc.annot.dpv rh.pial_roi;"\
-                       "exit;'",
-                       shell=True)
+        subprocess.run(codedir + "/bin/annot2dpv lh.aparc.annot lh.aparc.annot.dpv", shell=True, check=True)
+        subprocess.run(codedir + "/bin/annot2dpv rh.aparc.annot rh.aparc.annot.dpv", shell=True, check=True)
+        subprocess.run(codedir + "/bin/splitsrf lh.pial.srf lh.aparc.annot.dpv lh.pial_roi", shell=True, check=True)
+        subprocess.run(codedir + "/bin/splitsrf rh.pial.srf rh.aparc.annot.dpv rh.pial_roi", shell=True, check=True)
         os.chdir(codedir)
 
         surf_num_dict = {"0001":"Unmeasured.obj",
@@ -159,7 +161,8 @@ class SplitCorticalSurface(SubjectConfig, RerunnableTask):
                 subprocess.run("src/srf2obj " +
                                self.CORTEX.format(self.SUBJECT) + "/" + hemisphere + ".pial_roi." + surface + ".srf > " +
                                self.CORTEX.format(self.SUBJECT) + "/" + hemisphere + "." + surf_num_dict[surface],
-                               shell=True)
+                               shell=True,
+                               check=True)
         return
 
     def output(self):
@@ -250,7 +253,8 @@ class GenBlenderScene(SubjectConfig, RerunnableTask):
                         self.CORTEX.format(self.SUBJECT),
                         self.CONTACT.format(self.SUBJECT),
                         self.OUTPUT.format(self.SUBJECT_NUM),
-                        subject_stimfile])
+                        subject_stimfile],
+                       check=True)
         return
 
     def output(self):
@@ -306,7 +310,8 @@ class BuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
                         "--",
                         self.AVG_ROI,
                         self.OUTPUT,
-                        stimfile])
+                        stimfile],
+                       check=True)
 
         return
 
