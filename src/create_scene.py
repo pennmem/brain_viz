@@ -122,6 +122,12 @@ def add_contacts(contactpath, mono_color, bipo_color, orig_color):
     atlas_color_map = {'monopolar_orig' : orig_color,
                        'monopolar_dykstra': mono_color,
                        'bipolar_dykstra': bipo_color}
+    contact_type_size_map = {
+        "uD" : 1.5,
+        "D" : 2,
+        "S" : 2,
+        "G" : 2
+    }
     # Empty axes so we can group monopolar, bipolar, and original locations
     bpy.ops.object.empty_add(type='PLAIN_AXES')
     bpy.data.objects["Empty.001"].name = 'monopolar_orig'
@@ -136,7 +142,7 @@ def add_contacts(contactpath, mono_color, bipo_color, orig_color):
             atlas = atlas.rstrip()
             bpy.ops.mesh.primitive_cylinder_add(
                 vertices = 32,
-                radius = 2,
+                radius = contact_type_size_map[_type],
                 depth = 1.5,
                 location = (float(x), float(y), float(z))
             )

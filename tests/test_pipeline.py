@@ -50,14 +50,20 @@ def run_task(subject, subject_num, task, base, cortex, contact, tal, output):
                    stdout=subprocess.PIPE)
     return
 
-@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+@pytest.mark.parametrize("subject,subject_num",[
+        ("R1291M_1","291_1"),
+        ("R1333N", "333")
+])
 def test_can_start(subject, subject_num):
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
     cleanup(cortex, contact, output)
     run_task(subject, subject_num, 'CanStart', base, cortex, contact, tal, output)
     return
 
-@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+@pytest.mark.parametrize("subject,subject_num",[
+        ("R1291M_1","291_1"),
+        ("R1333N", "333")
+])
 def test_freesurfer_to_wavefront(subject, subject_num):
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
     #cleanup(cortex, contact, output)
@@ -69,7 +75,9 @@ def test_freesurfer_to_wavefront(subject, subject_num):
 
     return
 
-@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+@pytest.mark.parametrize("subject,subject_num",[
+        ("R1333N", "333")
+])
 def test_split_cortical_surface(subject, subject_num):
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
     #cleanup(cortex, contact, output)
@@ -79,7 +87,12 @@ def test_split_cortical_surface(subject, subject_num):
 
     return
 
-@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+
+# Don't test R1333N here becuase the electrode_coordinates.csv file has been
+# customized to differentiate micros and macros
+@pytest.mark.parametrize("subject,subject_num",[
+        ("R1291M_1","291_1"),
+])
 def test_gen_coordinates(subject, subject_num):
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
     #cleanup(cortex, contact, output)
@@ -89,10 +102,10 @@ def test_gen_coordinates(subject, subject_num):
 
     return
 
-@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+@pytest.mark.parametrize("subject,subject_num",[
+        ("R1333N", "333")
+])
 def test_build_blender_site(subject, subject_num):
-    subject = 'R1291M_1'
-    subject_num = '291_1'
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
     #cleanup(cortex, contact, output)
     run_task(subject, subject_num, 'BuildBlenderSite', base, cortex, contact, tal, output)
@@ -102,7 +115,18 @@ def test_build_blender_site(subject, subject_num):
 
     return
 
-@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+@pytest.mark.parametrize("subject,subject_num",[
+        ("R1333N", "333")
+])
+def test_gen_mapped_prior_stim_sites(subject, subject_num):
+    base, cortex, contact, tal, output = build_directories(subject, subject_num)
+    run_task(subject, subject_num, 'GenMappedPriorStimSites', base, cortex, contact, tal, output)
+    assert os.path.exists(base + '/prior_stim/{}_allcords.csv'.format(subject))
+    return
+
+@pytest.mark.parametrize("subject,subject_num",[
+        ("R1333N", "333")
+])
 def test_gen_blender_scene(subject, subject_num):
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
     #cleanup(cortex, contact, output)
