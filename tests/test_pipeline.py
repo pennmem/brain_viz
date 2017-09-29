@@ -1,4 +1,5 @@
 import os
+import pytest
 import shutil
 import subprocess
 
@@ -35,7 +36,7 @@ def run_task(subject, subject_num, task, base, cortex, contact, tal, output):
     assert os.path.exists(base)
     assert os.path.exists(contact)
     assert os.path.exists(tal)
-    command = 'PYTHONPATH="/home1/zduey/brain_viz/" luigi --module src.pipeline {} --local-scheduler\
+    command = 'PYTHONPATH="." luigi --module src.pipeline {} --local-scheduler\
                --SUBJECT {}\
                --SUBJECT-NUM {}\
                --BASE {}\
@@ -49,17 +50,15 @@ def run_task(subject, subject_num, task, base, cortex, contact, tal, output):
                    stdout=subprocess.PIPE)
     return
 
-def test_can_start():
-    subject = 'R1291M_1'
-    subject_num = '291_1'
+@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+def test_can_start(subject, subject_num):
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
     cleanup(cortex, contact, output)
     run_task(subject, subject_num, 'CanStart', base, cortex, contact, tal, output)
     return
 
-def test_freesurfer_to_wavefront():
-    subject = 'R1291M_1'
-    subject_num = '291_1'
+@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+def test_freesurfer_to_wavefront(subject, subject_num):
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
     #cleanup(cortex, contact, output)
     run_task(subject, subject_num, 'FreesurferToWavefront', base, cortex, contact, tal, output)
@@ -70,9 +69,8 @@ def test_freesurfer_to_wavefront():
 
     return
 
-def test_split_cortical_surface():
-    subject = 'R1291M_1'
-    subject_num = '291_1'
+@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+def test_split_cortical_surface(subject, subject_num):
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
     #cleanup(cortex, contact, output)
     run_task(subject, subject_num, 'SplitCorticalSurface', base, cortex, contact, tal, output)
@@ -81,9 +79,8 @@ def test_split_cortical_surface():
 
     return
 
-def test_gen_coordinates():
-    subject = 'R1291M_1'
-    subject_num = '291_1'
+@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+def test_gen_coordinates(subject, subject_num):
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
     #cleanup(cortex, contact, output)
     run_task(subject, subject_num, 'GenElectrodeCoordinatesAndNames', base, cortex, contact, tal, output)
@@ -92,8 +89,8 @@ def test_gen_coordinates():
 
     return
 
-
-def test_build_blender_site():
+@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+def test_build_blender_site(subject, subject_num):
     subject = 'R1291M_1'
     subject_num = '291_1'
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
@@ -105,9 +102,8 @@ def test_build_blender_site():
 
     return
 
-def test_gen_blender_scene():
-    subject = 'R1291M_1'
-    subject_num = '291_1'
+@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+def test_gen_blender_scene(subject, subject_num):
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
     #cleanup(cortex, contact, output)
     run_task(subject, subject_num, 'GenBlenderScene', base, cortex, contact, tal, output)
@@ -118,15 +114,16 @@ def test_gen_blender_scene():
 
     return
 
-def test_gen_avg_brain():
-    cortex = "/home1/zduey/brain_viz/test_data/average/surf/roi/"
-    output = "/home1/zduey/brain_viz/test_data/avg/iEEG_surface/"
+@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+def test_gen_avg_brain(subject, subject_num):
+    cortex = TESTDIR + "/average/surf/roi/"
+    output = TESTDIR + "/avg/iEEG_surface/"
 
     # Cleanup
     if os.path.exists(output) == True:
         shutil.rmtree(output)
 
-    command = 'PYTHONPATH="/home1/zduey/brain_viz/" luigi --module src.pipeline BuildPriorStimAvgBrain --local-scheduler\
+    command = 'PYTHONPATH="." luigi --module src.pipeline BuildPriorStimAvgBrain --local-scheduler\
                --AVG-ROI {}\
                --OUTPUT {}'.format(cortex, output)
     subprocess.run(command,
