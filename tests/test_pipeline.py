@@ -51,10 +51,11 @@ def run_task(subject, subject_num, task, base, cortex, contact, tal, output):
     return
 
 @pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
-def test_can_start(subject, subject_num):
+def test_setup(subject, subject_num):
     base, cortex, contact, tal, output = build_directories(subject, subject_num)
     cleanup(cortex, contact, output)
-    run_task(subject, subject_num, 'CanStart', base, cortex, contact, tal, output)
+    run_task(subject, subject_num, 'Setup', base, cortex, contact, tal, output)
+    assert os.path.exists(cortex)
     return
 
 @pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
@@ -66,6 +67,26 @@ def test_freesurfer_to_wavefront(subject, subject_num):
     assert os.path.exists(cortex)
     assert os.path.exists(cortex + '/lh.pial.obj')
     assert os.path.exists(cortex + '/rh.pial.obj')
+
+    return
+
+@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+def test_hcp_atlas_mapping(subject, subject_num):
+    base, cortex, contact, tal, output = build_directories(subject, subject_num)
+    run_task(subject, subject_num, 'HCPAtlasMapping', base, cortex, contact, tal, output)
+
+    assert os.path.exists(base + '/surf/roi/lh.HCP-MMP1.annot')
+    assert os.path.exists(base + '/surf/roi/lh.HCP-MMP1.annot')
+
+    return
+
+@pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
+def test_split_hcp_surface(subject, subject_num):
+    base, cortex, contact, tal, output = build_directories(subject, subject_num)
+    run_task(subject, subject_num, 'SplitHCPSurface', base, cortex, contact, tal, output)
+
+    assert os.path.exists(cortex + '/lh.hcp.0001.obj')
+    assert os.path.exists(cortex + '/rh.hcp.0001.obj')
 
     return
 

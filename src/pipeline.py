@@ -39,14 +39,21 @@ class AvgBrainConfig(luigi.Config):
     AVG_ROI = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/average/surf/roi/")
 
 
-class CanStart(SubjectConfig, RerunnableTask):
+class Setup(SubjectConfig, RerunnableTask):
     """
         Checks that the required freesurfer cortical surface and coordinate
         name files exist for the given SUBJECT
     """
 
+    def requires(self):
+        return
+
+    def run(self):
+        os.mkdir(self.CORTEX.format(self.SUBJECT))
+
     def output(self):
-        return [luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/lh.pial"),
+        return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT)),
+                luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/lh.pial"),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/rh.pial"),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/lh.aparc.annot"),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot"),
@@ -54,16 +61,89 @@ class CanStart(SubjectConfig, RerunnableTask):
                 luigi.LocalTarget(self.TAL.format(self.SUBJECT) + "/VOX_coords_mother_dykstra_bipolar.txt")]
 
 
+class HCPAtlasMapping(SubjectConfig, RerunnableTask):
+    """ Maps the HCP atlas from the fs average brain to the current subject
+
+    This task relies on the mri_surf2surf freesurfer command, which uses the
+    FREESURFER_HOME and SUBJECTS_DIR environment variables to search for input
+    files and save output. If testing, be sure that these are updated to avoid
+    writing to the production file system locations.
+
+    """
+    def requires(self):
+        return Setup(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
+                        self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
+                        self.FORCE_RERUN)
+
+
+    def run(self):
+        subprocess.run("mri_surf2surf " +
+                       "--srcsubject fsaverage_temp " +
+                       "--sval-annot HCP-MMP1.annot " +
+                       "--trgsubject {} ".format(self.SUBJECT) +
+                       "--trgsurfval HCP-MMP1.annot " +
+                       "--hemi lh",
+                       shell=True,
+                       check=True)
+        subprocess.run("mri_surf2surf " +
+                       "--srcsubject fsaverage_temp " +
+                       "--sval-annot HCP-MMP1.annot " +
+                       "--trgsubject {} ".format(self.SUBJECT) +
+                       "--trgsurfval HCP-MMP1.annot " +
+                       "--hemi rh",
+                       shell=True,
+                       check=True)
+        shutil.copy(self.BASE.format(self.SUBJECT) + "/label/lh.HCP-MMP1.annot",
+                    self.CORTEX.format(self.SUBJECT))
+        shutil.copy(self.BASE.format(self.SUBJECT) + "/label/rh.HCP-MMP1.annot",
+                    self.CORTEX.format(self.SUBJECT))
+        return
+
+    def output(self):
+        return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/lh.HCP-MMP1.annot"),
+                luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/rh.HCP-MMP1.annot")]
+
+
+class SplitHCPSurface(SubjectConfig, RerunnableTask):
+    """ Splits subject's surface into regions based on the HCP atlas """
+    def requires(self):
+        return HCPAtlasMapping(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
+                               self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
+                               self.FORCE_RERUN)
+
+
+    def run(self):
+        codedir = os.getcwd() # code directory
+        os.chdir(self.CORTEX.format(self.SUBJECT))
+        subprocess.run(codedir + "/bin/annot2dpv lh.HCP-MMP1.annot lh.HCP-MMP1.annot.dpv", shell=True, check=True)
+        subprocess.run(codedir + "/bin/annot2dpv rh.HCP-MMP1.annot rh.HCP-MMP1.annot.dpv", shell=True, check=True)
+        subprocess.run(codedir + "/bin/splitsrf lh.pial.srf lh.HCP-MMP1.annot.dpv lh.hcp", shell=True, check=True)
+        subprocess.run(codedir + "/bin/splitsrf rh.pial.srf rh.HCP-MMP1.annot.dpv rh.hcp", shell=True, check=True)
+        os.chdir(codedir)
+
+        # Convert .srf files to .obj
+        hcp_surfaces = glob.glob(self.CORTEX.format(self.SUBJECT) + "/*.hcp.*.srf")
+        for surface in hcp_surfaces:
+            subprocess.run("src/srf2obj " + surface + " > " + surface.replace(".srf", ".obj"),
+                           shell=True,
+                           check=True)
+        return
+
+    def output(self):
+        # A couple of hundred objects are produced, so just check for a couple
+        return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/rh.hcp.0001.obj"),
+                luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/lh.hcp.0001.obj")]
+
+
 class FreesurferToWavefront(SubjectConfig, RerunnableTask):
     """ Converts freesurfer cortical surface binary files to wavefront object files """
 
     def requires(self):
-        return CanStart(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
-                        self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
-                        self.FORCE_RERUN)
+        return Setup(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
+                     self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
+                     self.FORCE_RERUN)
 
     def run(self):
-        os.mkdir(self.CORTEX.format(self.SUBJECT))
         shutil.copy(self.BASE.format(self.SUBJECT) + "/surf/lh.pial", self.CORTEX.format(self.SUBJECT))
         shutil.copy(self.BASE.format(self.SUBJECT) + "/surf/rh.pial", self.CORTEX.format(self.SUBJECT))
         shutil.copy(self.BASE.format(self.SUBJECT) + "/label/lh.aparc.annot", self.CORTEX.format(self.SUBJECT))
@@ -205,15 +285,11 @@ class GenMappedPriorStimSites(SubjectConfig, RerunnableTask):
 class BuildBlenderSite(SubjectConfig, RerunnableTask):
     """ Creates a single directory site for displaying web-based blender scene """
     def requires(self):
-        return [GenElectrodeCoordinatesAndNames(self.SUBJECT, self.SUBJECT_NUM,
-                                                self.BASE, self.CORTEX,
-                                                self.CONTACT, self.TAL,
-                                                self.IMAGE, self.OUTPUT,
-                                                self.FORCE_RERUN),
-                GenMappedPriorStimSites(self.SUBJECT, self.SUBJECT_NUM,
-                                        self.BASE, self.CORTEX, self.CONTACT,
-                                        self.TAL, self.IMAGE, self.OUTPUT,
-                                        self.FORCE_RERUN)]
+        return Setup(self.SUBJECT, self.SUBJECT_NUM,
+                     self.BASE, self.CORTEX,
+                     self.CONTACT, self.TAL,
+                     self.IMAGE, self.OUTPUT,
+                     self.FORCE_RERUN)
 
     def run(self):
         if os.path.exists(self.OUTPUT.format(self.SUBJECT_NUM)) == False:
@@ -235,9 +311,22 @@ class GenBlenderScene(SubjectConfig, RerunnableTask):
     """ Generates the blender scene from wavefront object and coordinate files """
 
     def requires(self):
-        return BuildBlenderSite(self.SUBJECT, self.SUBJECT_NUM, self.BASE,
+        return [BuildBlenderSite(self.SUBJECT, self.SUBJECT_NUM, self.BASE,
                                 self.CORTEX, self.CONTACT, self.TAL, self.IMAGE,
-                                self.OUTPUT, self.FORCE_RERUN)
+                                self.OUTPUT, self.FORCE_RERUN),
+                GenElectrodeCoordinatesAndNames(self.SUBJECT, self.SUBJECT_NUM,
+                                                self.BASE, self.CORTEX,
+                                                self.CONTACT, self.TAL,
+                                                self.IMAGE, self.OUTPUT,
+                                                self.FORCE_RERUN),
+                GenMappedPriorStimSites(self.SUBJECT, self.SUBJECT_NUM,
+                                        self.BASE, self.CORTEX, self.CONTACT,
+                                        self.TAL, self.IMAGE, self.OUTPUT,
+                                        self.FORCE_RERUN),
+                SplitHCPSurface(self.SUBJECT, self.SUBJECT_NUM,
+                                self.BASE, self.CORTEX, self.CONTACT,
+                                self.TAL, self.IMAGE, self.OUTPUT,
+                                self.FORCE_RERUN)]
 
     def run(self):
         subject_stimfile = self.BASE.format(self.SUBJECT) + "/prior_stim/" + self.SUBJECT + "_allcords.csv"
