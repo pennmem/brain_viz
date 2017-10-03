@@ -137,8 +137,8 @@ def test_gen_blender_scene(subject, subject_num):
 
 @pytest.mark.parametrize("subject,subject_num",[("R1291M_1","291_1")])
 def test_gen_avg_brain(subject, subject_num):
-    cortex = TESTDIR + "/average/surf/roi/"
-    output = TESTDIR + "/avg/iEEG_surface/"
+    cortex = TESTDIR + "/test_data/average/surf/roi/"
+    output = TESTDIR + "/test_data/avg/iEEG_surface/"
 
     # Cleanup
     if os.path.exists(output) == True:

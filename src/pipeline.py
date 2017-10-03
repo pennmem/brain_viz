@@ -49,7 +49,9 @@ class Setup(SubjectConfig, RerunnableTask):
         return
 
     def run(self):
-        os.mkdir(self.CORTEX.format(self.SUBJECT))
+        if (os.path.exists(self.CORTEX.format(self.SUBJECT)) == False):
+            os.mkdir(self.CORTEX.format(self.SUBJECT))
+        return
 
     def output(self):
         return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT)),
@@ -113,18 +115,17 @@ class SplitHCPSurface(SubjectConfig, RerunnableTask):
 
 
     def run(self):
-        codedir = os.getcwd() # code directory
         os.chdir(self.CORTEX.format(self.SUBJECT))
-        subprocess.run(codedir + "/bin/annot2dpv lh.HCP-MMP1.annot lh.HCP-MMP1.annot.dpv", shell=True, check=True)
-        subprocess.run(codedir + "/bin/annot2dpv rh.HCP-MMP1.annot rh.HCP-MMP1.annot.dpv", shell=True, check=True)
-        subprocess.run(codedir + "/bin/splitsrf lh.pial.srf lh.HCP-MMP1.annot.dpv lh.hcp", shell=True, check=True)
-        subprocess.run(codedir + "/bin/splitsrf rh.pial.srf rh.HCP-MMP1.annot.dpv rh.hcp", shell=True, check=True)
-        os.chdir(codedir)
+        subprocess.run(PROJECTDIR + "/bin/annot2dpv lh.HCP-MMP1.annot lh.HCP-MMP1.annot.dpv", shell=True, check=True)
+        subprocess.run(PROJECTDIR + "/bin/annot2dpv rh.HCP-MMP1.annot rh.HCP-MMP1.annot.dpv", shell=True, check=True)
+        subprocess.run(PROJECTDIR + "/bin/splitsrf lh.pial.srf lh.HCP-MMP1.annot.dpv lh.hcp", shell=True, check=True)
+        subprocess.run(PROJECTDIR + "/bin/splitsrf rh.pial.srf rh.HCP-MMP1.annot.dpv rh.hcp", shell=True, check=True)
+        os.chdir(PROJECTDIR + "/src/")
 
         # Convert .srf files to .obj
         hcp_surfaces = glob.glob(self.CORTEX.format(self.SUBJECT) + "/*.hcp.*.srf")
         for surface in hcp_surfaces:
-            subprocess.run("src/srf2obj " + surface + " > " + surface.replace(".srf", ".obj"),
+            subprocess.run(PROJECTDIR + "/src/srf2obj " + surface + " > " + surface.replace(".srf", ".obj"),
                            shell=True,
                            check=True)
         return
@@ -192,13 +193,12 @@ class SplitCorticalSurface(SubjectConfig, RerunnableTask):
                                      self.IMAGE, self.OUTPUT, self.FORCE_RERUN)
 
     def run(self):
-        codedir = os.getcwd() # code directory
         os.chdir(self.CORTEX.format(self.SUBJECT))
-        subprocess.run(codedir + "/bin/annot2dpv lh.aparc.annot lh.aparc.annot.dpv", shell=True, check=True)
-        subprocess.run(codedir + "/bin/annot2dpv rh.aparc.annot rh.aparc.annot.dpv", shell=True, check=True)
-        subprocess.run(codedir + "/bin/splitsrf lh.pial.srf lh.aparc.annot.dpv lh.pial_roi", shell=True, check=True)
-        subprocess.run(codedir + "/bin/splitsrf rh.pial.srf rh.aparc.annot.dpv rh.pial_roi", shell=True, check=True)
-        os.chdir(codedir)
+        subprocess.run(PROJECTDIR + "/bin/annot2dpv lh.aparc.annot lh.aparc.annot.dpv", shell=True, check=True)
+        subprocess.run(PROJECTDIR + "/bin/annot2dpv rh.aparc.annot rh.aparc.annot.dpv", shell=True, check=True)
+        subprocess.run(PROJECTDIR + "/bin/splitsrf lh.pial.srf lh.aparc.annot.dpv lh.pial_roi", shell=True, check=True)
+        subprocess.run(PROJECTDIR + "/bin/splitsrf rh.pial.srf rh.aparc.annot.dpv rh.pial_roi", shell=True, check=True)
+        os.chdir(PROJECTDIR + "/src/")
 
         surf_num_dict = {"0001":"Unmeasured.obj",
                          "0002":"BanksSuperiorTemporal.obj",
@@ -238,7 +238,7 @@ class SplitCorticalSurface(SubjectConfig, RerunnableTask):
 
         for hemisphere in ["lh", "rh"]:
             for surface in surf_num_dict.keys():
-                subprocess.run("src/srf2obj " +
+                subprocess.run(PROJECTDIR + "/src/srf2obj " +
                                self.CORTEX.format(self.SUBJECT) + "/" + hemisphere + ".pial_roi." + surface + ".srf > " +
                                self.CORTEX.format(self.SUBJECT) + "/" + hemisphere + "." + surf_num_dict[surface],
                                shell=True,
@@ -368,6 +368,7 @@ class BuildAll(AllConfig, RerunnableTask):
             yield GenBlenderScene(subject_id, subject_num, self.BASE,
                                   self.CORTEX, self.CONTACT, self.TAL,
                                   self.IMAGE, self.OUTPUT, self.FORCE_RERUN)
+
 
 
 class CanBuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
