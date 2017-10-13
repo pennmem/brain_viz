@@ -51,8 +51,14 @@ class Setup(SubjectConfig, RerunnableTask):
     def run(self):
         if (os.path.exists(self.CORTEX.format(self.SUBJECT)) == False):
             os.mkdir(self.CORTEX.format(self.SUBJECT))
+        shutil.copy(self.BASE.format(self.SUBJECT) + "/surf/lh.pial", self.CORTEX.format(self.SUBJECT))
+        shutil.copy(self.BASE.format(self.SUBJECT) + "/surf/rh.pial", self.CORTEX.format(self.SUBJECT))
+        shutil.copy(self.BASE.format(self.SUBJECT) + "/label/lh.aparc.annot", self.CORTEX.format(self.SUBJECT))
+        shutil.copy(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot", self.CORTEX.format(self.SUBJECT))
+
         return
 
+    # TODO: Add matlab talstruct as explicit dependency. Localization.json for neurorad v2
     def output(self):
         return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT)),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/lh.pial"),
@@ -109,9 +115,12 @@ class HCPAtlasMapping(SubjectConfig, RerunnableTask):
 class SplitHCPSurface(SubjectConfig, RerunnableTask):
     """ Splits subject's surface into regions based on the HCP atlas """
     def requires(self):
-        return HCPAtlasMapping(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
+        return [HCPAtlasMapping(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
                                self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
-                               self.FORCE_RERUN)
+                               self.FORCE_RERUN),
+                FreesurferToWavefront(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
+                                      self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
+                                      self.FORCE_RERUN)]
 
 
     def run(self):
@@ -145,11 +154,6 @@ class FreesurferToWavefront(SubjectConfig, RerunnableTask):
                      self.FORCE_RERUN)
 
     def run(self):
-        shutil.copy(self.BASE.format(self.SUBJECT) + "/surf/lh.pial", self.CORTEX.format(self.SUBJECT))
-        shutil.copy(self.BASE.format(self.SUBJECT) + "/surf/rh.pial", self.CORTEX.format(self.SUBJECT))
-        shutil.copy(self.BASE.format(self.SUBJECT) + "/label/lh.aparc.annot", self.CORTEX.format(self.SUBJECT))
-        shutil.copy(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot", self.CORTEX.format(self.SUBJECT))
-
         subprocess.run("mris_convert " +
                        self.CORTEX.format(self.SUBJECT) + "/lh.pial " +
                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.asc",
