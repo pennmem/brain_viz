@@ -163,14 +163,14 @@ class FreesurferToWavefront(SubjectConfig, RerunnableTask):
         shutil.move(self.CORTEX.format(self.SUBJECT) + "/lh.pial.asc", self.CORTEX.format(self.SUBJECT) + "/lh.pial.srf")
         shutil.move(self.CORTEX.format(self.SUBJECT) + "/rh.pial.asc", self.CORTEX.format(self.SUBJECT) + "/rh.pial.srf")
 
-        subprocess.run("src/srf2obj " +
+        subprocess.run(PROJECTDIR + "src/srf2obj " +
                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.srf " +
                        "> " +
                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.obj",
                        shell=True,
                        check=True)
 
-        subprocess.run("src/srf2obj " +
+        subprocess.run(PROJECTDIR + "src/srf2obj " +
                         self.CORTEX.format(self.SUBJECT) + "/rh.pial.srf " +
                        "> " +
                        self.CORTEX.format(self.SUBJECT) + "/rh.pial.obj",
