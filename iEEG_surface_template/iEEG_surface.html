@@ -34,7 +34,14 @@ div.button-wrap {
     <div id="display_panel" data-role="collapsible">
     <h4>Display</h4>
     <fieldset data-role="controlgroup" data-type="horizontal">
-        <legend>Show hemisphere</legend>
+        <legend>Choose Atlas</legend>
+        <input type="radio" name="atlas" id="dk" value="on" checked="checked">
+        <label for="dk">DK</label>
+        <input type="radio" name="atlas" id="hcp" value="off">
+        <label for="hcp">HCP</label>
+    </fieldset>
+    <fieldset data-role="controlgroup" data-type="horizontal">
+        <legend>Show Hemisphere</legend>
         <input type="checkbox" name="cortex_left" id="cortex_left" checked>
         <label for="cortex_left">Left</label>
         <input type="checkbox" name="cortex_right" id="cortex_right" checked>
@@ -46,7 +53,7 @@ div.button-wrap {
         <label for="monopolars">Monopolars</label>
         <input type="checkbox" name="bipolars" id="bipolars" checked>
         <label for="bipolars">Bipolars</label>
-        <input type="checkbox" name="monopolars_start" id="monopolars_start" checked>
+        <input type="checkbox" name="monopolars_start" id="monopolars_start">
         <label for="monopolars_start">Original</label>
     </fieldset>
     <fieldset data-role="controlgroup" data-type="horizontal">

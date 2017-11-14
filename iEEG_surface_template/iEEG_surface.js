@@ -98,7 +98,7 @@ function init_cb(canvas_elem, success) {
 	    (m_scenes.check_object_by_name("avg_hfa") == false))
 	{
             document.getElementById('functional_data').hidden = true;
-	}
+    }
     };
 
     var options_hidden = true;
@@ -321,7 +321,6 @@ function load_cb(data_id) {
     m_mouse.enable_mouse_hover_outline();
    
     // Button functions to show or hide hemispheres, cortex labels, transparency, monopolars, bipolars
-    
     function toggle_visibility(obj_name) {
         var obj = m_scenes.get_object_by_name(obj_name);
 	if (m_scenes.is_hidden(obj) === true) {
@@ -331,13 +330,63 @@ function load_cb(data_id) {
 	    m_scenes.hide_object(obj);
 	}
     };
-    document.getElementById("cortex_left").onclick = function () {
-	    toggle_visibility("lh");
-    };
-    document.getElementById("cortex_right").onclick = function () {
-	    toggle_visibility("rh");
+
+    // Hide hcp atlas objects by default
+    toggle_visibility('lh_hcp');
+    toggle_visibility('rh_hcp');
+    toggle_visibility('monopolar_orig');
+
+    function get_active_atlas() {
+        var active_atlas;
+        var dk_active = (document.getElementById('dk').checked === true)
+        if (dk_active === true) {
+            return "dk";
+        }
+        else {
+            return "hcp"
+        }
     };
 
+   function toggle_checked(obj_id) {
+       var curr_state = document.getElementById(obj_id).checked
+       if (curr_state === true) {
+           document.getElementById(obj_id).checked = false;
+       }
+       else {
+           document.getElementById(obj_id).checked = true;
+       }
+   } 
+
+    document.getElementById('hcp').onclick = function () {
+        toggle_visibility('lh_hcp');
+        toggle_visibility('rh_hcp');
+        toggle_visibility('lh');
+        toggle_visibility('rh');
+    };
+    document.getElementById('dk').onclick = function () {
+        toggle_visibility('lh_hcp');
+        toggle_visibility('rh_hcp');
+        toggle_visibility('lh');
+        toggle_visibility('rh');
+    };
+    document.getElementById("cortex_left").onclick = function () {
+        var active_atlas = get_active_atlas()
+        if (active_atlas === "dk") {
+            toggle_visibility('lh');
+        }
+        else {
+            toggle_visibility('lh_hcp');
+        }
+    };
+    document.getElementById("cortex_right").onclick = function () {
+        var active_atlas = get_active_atlas()
+        if (active_atlas === "dk") {
+            toggle_visibility('rh');
+        }
+        else {
+            toggle_visibility('rh_hcp');
+        }
+    };
     document.getElementById("monopolars").onclick = function () {
         toggle_visibility("monopolar_dykstra");
     };

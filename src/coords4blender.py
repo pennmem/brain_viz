@@ -1,20 +1,17 @@
 import os
 import json
-import sys
 import itertools
 import pandas as pd
-from ptsa.data.readers import TalReader
 
 
-LOCALIZATION = "/protocols/r1/subjects/{}/localizations/{}/montages/{}/neuroradiology/current_processed/localization.json"
+LOCALIZATION = "/protocols/r1/subjects/{}/localizations/{}/neuroradiology/current_processed/localization.json"
 
 
 def save_coords_for_blender(subject, outdir, localization_file=None):
     if localization_file is not None:
         LOCALIZATION = localization_file
     localization = guess_localization(subject)
-    montage = guess_montage(subject, localization)
-    localization_data = read_json(LOCALIZATION.format(subject, localization, montage))
+    localization_data = read_json(LOCALIZATION.format(subject, localization))
     localization_df = json_to_dataframe(localization_data)
     localization_df["contact_name"] = localization_df["name"]
     localization_df.loc[localization_df["contact_name"].isnull(),
@@ -33,11 +30,13 @@ def save_coords_for_blender(subject, outdir, localization_file=None):
     localization_df["y_adj"] = localization_df["coordinate_spaces.fs.corrected"].apply(lambda x: x[1])
     localization_df["z_adj"] = localization_df["coordinate_spaces.fs.corrected"].apply(lambda x: x[2])
 
-    orig_df = localization_df[["contact_name", "contact_type", "x_orig", "y_orig", "z_orig"]]
+    orig_df = localization_df[["contact_name", "contact_type", "x_orig",
+                               "y_orig", "z_orig"]]
     orig_df.columns = ["contact_name", "contact_type", "x", "y", "z"]
     orig_df["atlas"] = "orig"
 
-    adj_df = localization_df[["contact_name", "contact_type", "x_adj", "y_adj", "z_adj"]]
+    adj_df = localization_df[["contact_name", "contact_type", "x_adj",
+                              "y_adj", "z_adj"]]
     adj_df.columns = ["contact_name", "contact_type", "x", "y", "z"]
     adj_df["atlas"] = "dykstra"
 
@@ -61,6 +60,7 @@ def save_coords_for_blender(subject, outdir, localization_file=None):
 
     return final_df
 
+
 def is_monopolar(contact_name):
     """ Utility function to determine if contact is monopolar from the name
 
@@ -76,6 +76,7 @@ def is_monopolar(contact_name):
     if contact_name.find("-") == -1:
         return True
     return False
+
 
 def monopolars_to_bipolar(monopolar_array):
     """ Generated bipolar contact name from array of monopolar names
@@ -104,7 +105,6 @@ def extract_lead_and_num(contact_name):
     (str, int)
 
     """
-    found_start = False
     if contact_name.find('-') != -1:
         contact_name = contact_name[0 : contact_name.find('-')]
 
@@ -124,6 +124,7 @@ def extract_lead_and_num(contact_name):
     num = int(contact_name[start_index + 1:])
     return lead, num
 
+
 def json_to_dataframe(localization_data):
     leads = localization_data["leads"].values()
     flat_contact_data = list(itertools.chain(*[x["contacts"] for x in leads]))
@@ -141,7 +142,6 @@ def get_lead_to_type_mapping(localization_data):
     return type_map
 
 def guess_localization(subject):
-
     if subject.find("_") == -1:
         localization = "0"
 
@@ -150,19 +150,6 @@ def guess_localization(subject):
         localization = tokens[-1]
 
     return localization
-
-def guess_montage(subject, localization):
-    if subject.find("_") == -1:
-        montages = os.listdir("/protocols/r1/subjects/%s/"\
-                              "localizations/%s/montages" %
-                              (subject, localization))
-        montage = montages[0] # just use the first one
-
-    else:
-       tokens = subject.split("_")
-       montage = tokens[-1]
-
-    return montage
 
 
 def read_json(filepath):

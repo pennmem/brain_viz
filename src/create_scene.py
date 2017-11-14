@@ -68,17 +68,32 @@ def prettify_objects(white):
 
 def consolidate_hemispheres():
     bpy.ops.object.empty_add(type='PLAIN_AXES')
-    bpy.ops.object.empty_add(type='PLAIN_AXES')
-    bpy.ops.object.empty_add(type='PLAIN_AXES')
+    bpy.ops.object.empty_add(type='PLAIN_AXES') # Empty.001
+    bpy.ops.object.empty_add(type='PLAIN_AXES') # Empty.002
+    bpy.ops.object.empty_add(type='PLAIN_AXES') # Empty.003
+    bpy.ops.object.empty_add(type='PLAIN_AXES') # Empty.004
+
+    # If the file name has 'hcp' in it, they should be assigned to different axis
     for ob in bpy.context.scene.objects:
-        if ob.name[0] is 'l':
+        if ((ob.name[0] is 'l') and (ob.name.find('hcp') == -1)):
             ob.parent = bpy.data.objects["Empty.001"]
-        if ob.name[0] is 'r':
+        elif ((ob.name[0] is 'l') and (ob.name.find('hcp') != -1)):
+            ob.parent = bpy.data.objects["Empty.003"]
+        elif ((ob.name[0] is 'r') and (ob.name.find('hcp') == -1)):
             ob.parent = bpy.data.objects["Empty.002"]
+        elif ((ob.name[0] is 'r') and (ob.name.find('hcp') != -1)):
+            ob.parent = bpy.data.objects["Empty.004"]
+        else:
+            continue
+    
     bpy.data.objects["Empty.001"].name = 'lh'
     bpy.data.objects["Empty.002"].name = 'rh'
+    bpy.data.objects["Empty.003"].name = 'lh_hcp'
+    bpy.data.objects["Empty.004"].name = 'rh_hcp'
     bpy.data.objects['lh'].b4w_do_not_batch = True
     bpy.data.objects['rh'].b4w_do_not_batch = True
+    bpy.data.objects['lh_hcp'].b4w_do_not_batch = True
+    bpy.data.objects['rh_hcp'].b4w_do_not_batch = True
     return
 
 def finalize_object_attributes():
