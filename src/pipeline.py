@@ -12,6 +12,7 @@ from src.coords4blender import save_coords_for_blender
 # Use for building file locations relative to the project root
 PROJECTDIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
+
 class SubjectConfig(luigi.Config):
     """ Genreal Luigi config class for processing single-subject"""
     SUBJECT = luigi.Parameter(default=None)
@@ -58,15 +59,12 @@ class Setup(SubjectConfig, RerunnableTask):
 
         return
 
-    # TODO: Add matlab talstruct as explicit dependency. Localization.json for neurorad v2
     def output(self):
         return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT)),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/lh.pial"),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/rh.pial"),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/lh.aparc.annot"),
-                luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot"),
-                luigi.LocalTarget(self.TAL.format(self.SUBJECT) + "/VOX_coords_mother_dykstra.txt"),
-                luigi.LocalTarget(self.TAL.format(self.SUBJECT) + "/VOX_coords_mother_dykstra_bipolar.txt")]
+                luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot")]
 
 
 class HCPAtlasMapping(SubjectConfig, RerunnableTask):
@@ -256,17 +254,22 @@ class SplitCorticalSurface(SubjectConfig, RerunnableTask):
 
 
 class GenElectrodeCoordinatesAndNames(SubjectConfig, RerunnableTask):
-    """ Creates coordinate files out of MATLAB talstructs """
+    """
+        Creates coordinate files out of MATLAB talstructs in the old pipeline
+        and using localization.json in the new pipeline
+
+    """
     def requires(self):
         return SplitCorticalSurface(self.SUBJECT, self.SUBJECT_NUM, self.BASE,
                                     self.CORTEX, self.CONTACT, self.TAL,
                                     self.IMAGE,  self.OUTPUT, self.FORCE_RERUN)
 
     def run(self):
-        save_coords_for_blender(self.SUBJECT, self.CONTACT.format(self.SUBJECT))
+        save_coords_for_blender(self.SUBJECT, self.TAL.format(self.SUBJECT))
 
     def output(self):
-        return [luigi.LocalTarget(self.CONTACT.format(self.SUBJECT) + "/electrode_coordinates.csv")]
+        return [luigi.LocalTarget(self.TAL.format(self.SUBJECT) +
+                                  "/electrode_coordinates.csv")]
 
 
 class GenMappedPriorStimSites(SubjectConfig, RerunnableTask):
@@ -301,14 +304,12 @@ class BuildBlenderSite(SubjectConfig, RerunnableTask):
             os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/axial")
             os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/coronal")
 
-        shutil.copy(self.TAL.format(self.SUBJECT) + "/VOX_coords_mother_dykstra.txt", self.OUTPUT.format(self.SUBJECT_NUM))
-        shutil.copy(self.TAL.format(self.SUBJECT) + "/VOX_coords_mother_dykstra_bipolar.txt", self.OUTPUT.format(self.SUBJECT_NUM))
-
         return
 
     def output(self):
         # More files are copied over, so this is a lazy check of output
-        return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/VOX_coords_mother_dykstra.txt")]
+        return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) +
+                                  "/iEEG_surface.html")]
 
 
 class GenBlenderScene(SubjectConfig, RerunnableTask):
@@ -344,7 +345,7 @@ class GenBlenderScene(SubjectConfig, RerunnableTask):
                         self.SUBJECT,
                         self.SUBJECT_NUM,
                         self.CORTEX.format(self.SUBJECT),
-                        self.CONTACT.format(self.SUBJECT),
+                        self.TAL.format(self.SUBJECT),
                         self.OUTPUT.format(self.SUBJECT_NUM),
                         subject_stimfile],
                        check=True)
