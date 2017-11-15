@@ -4,14 +4,18 @@ import itertools
 import pandas as pd
 
 
-LOCALIZATION = "/protocols/r1/subjects/{}/localizations/{}/neuroradiology/current_processed/localization.json"
 
 
+# TODO: Allow this function to determine whether to use localization.json or
+# talstructs
 def save_coords_for_blender(subject, outdir, localization_file=None):
+    base_localization_path = '/protocols/r1/subjects/{}/localizations/{' \
+                             '}/neuroradiology/current_processed/localization.json'
     if localization_file is not None:
-        LOCALIZATION = localization_file
+        base_localization_path = localization_file
+
     localization = guess_localization(subject)
-    localization_data = read_json(LOCALIZATION.format(subject, localization))
+    localization_data = read_json(base_localization_path.format(subject, localization))
     localization_df = json_to_dataframe(localization_data)
     localization_df["contact_name"] = localization_df["name"]
     localization_df.loc[localization_df["contact_name"].isnull(),
