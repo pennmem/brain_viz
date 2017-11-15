@@ -3,19 +3,40 @@ import json
 import itertools
 import pandas as pd
 
+from ptsa.data.readers import TalReader
 
 
-
-# TODO: Allow this function to determine whether to use localization.json or
-# talstructs
 def save_coords_for_blender(subject, outdir, localization_file=None):
-    base_localization_path = '/protocols/r1/subjects/{}/localizations/{' \
-                             '}/neuroradiology/current_processed/localization.json'
+    base_localization_path = "/protocols/r1/subjects/{}/localizations/{" \
+                              "}/neuroradiology/current_processed/localization.json"
+
     if localization_file is not None:
         base_localization_path = localization_file
 
     localization = guess_localization(subject)
-    localization_data = read_json(base_localization_path.format(subject, localization))
+    localization_file = base_localization_path.format(subject, localization)
+    if not os.path.exists(localization_file):
+        # get coordinates from talstruct
+        final_df = extract_coordinates_from_talstructs(subject)
+    else:
+        # get coordinates from the new localization.json file
+        final_df = extract_coordinates_from_localization_file(subject,
+                                                              localization_file)
+
+    # Scale coordinates
+    for col in ['x', 'y', 'z']:
+        final_df[col] = 0.02 * final_df[col]
+
+    final_df = add_orientation_contact_for_depth_electrodes(final_df)
+    final_df = final_df[["contact_name", "contact_type", "x", "y", "z",
+                         "atlas", "orient_to"]]
+    final_df.to_csv(outdir + "/electrode_coordinates.csv", index=False)
+
+    return final_df
+
+
+def extract_coordinates_from_localization_file(subject, localization_file):
+    localization_data = read_json(localization_file)
     localization_df = json_to_dataframe(localization_data)
     localization_df["contact_name"] = localization_df["name"]
     localization_df.loc[localization_df["contact_name"].isnull(),
@@ -54,15 +75,71 @@ def save_coords_for_blender(subject, outdir, localization_file=None):
     final_df.loc[final_df["atlas"] == "monopolar_orig",
                  "contact_name"] = "o" + final_df.loc[final_df["atlas"] == "monopolar_orig",
                                                       "contact_name"]
-    # Scaling factor
-    for col in ['x', 'y', 'z']:
-        final_df[col] = 0.02 * final_df[col]
-
-    final_df = add_orientation_contact_for_depth_electrodes(final_df)
-    final_df = final_df[["contact_name", "contact_type", "x", "y", "z", "atlas", "orient_to"]]
-    final_df.to_csv(outdir + "/electrode_coordinates.csv", index=False)
 
     return final_df
+
+
+
+
+def extract_coordinates_from_talstructs(subject):
+    talstruct_base_path = "/data10/RAM/subjects/{}/tal/{}_talLocs_database_{" \
+                         "}.mat"
+    bipol_reader = TalReader(filename=talstruct_base_path.format(subject, subject, 'bipol'),
+                             struct_type = 'bi')
+    bipol_structs = bipol_reader.read()
+
+    mono_reader = TalReader(filename=talstruct_base_path.format(subject, subject,
+                                                    'monopol'),
+                            struct_type = 'mono')
+    mono_structs = mono_reader.read()
+
+    mono_start_df = get_coords(mono_structs, 'monopolar')
+    mono_start_df["contact_name"] = "o" + mono_start_df["contact_name"]
+
+    mono_adj_df = get_coords(mono_structs, 'monopolar', atlas='Dykstra')
+
+    bipo_adj_df = get_coords(bipol_structs, 'bipolar', atlas='Dykstra')
+
+    all_coord_df = pd.concat([mono_start_df, mono_adj_df, bipo_adj_df])
+
+    return all_coord_df
+
+
+def get_coords(talStruct, elec_type, atlas=None):
+    if atlas is None:
+        df = pd.DataFrame(columns=['contact_name' , 'contact_type', 'x', 'y', 'z'],
+                             data={'contact_name' : talStruct['tagName'],
+                                   'contact_type' : talStruct['eType'],
+                                   'x' : talStruct['indivSurf']['x'],
+                                   'y' : talStruct['indivSurf']['y'],
+                                   'z' : talStruct['indivSurf']['z']}
+                          )
+        df['atlas'] = elec_type + '_orig'
+        return df
+
+    # Dykstra coordinates will be empty for subjects with only depths. Use
+    # tal coordinates instead in these cases
+    if (set(talStruct["eType"]) == {"D"}):
+        df = pd.DataFrame(columns=['contact_name' , 'contact_type', 'x', 'y', 'z'],
+                             data={'contact_name' : talStruct['tagName'],
+                                   'contact_type' : talStruct['eType'],
+                                   'x' : talStruct['indivSurf']['x'],
+                                   'y' : talStruct['indivSurf']['y'],
+                                   'z' : talStruct['indivSurf']['z']}
+                          )
+        df['atlas'] = elec_type + '_dykstra'
+        return df
+
+    df = pd.DataFrame(columns=['contact_name' , 'contact_type', 'x', 'y', 'z'],
+                      data={'contact_name' : talStruct['tagName'],
+                            'contact_type' : talStruct['eType'],
+                            'x' : talStruct['indivSurf']['x_' + atlas],
+                            'y' : talStruct['indivSurf']['y_' + atlas],
+                            'z' : talStruct['indivSurf']['z_' + atlas]}
+                     )
+    df['atlas'] = elec_type + '_dykstra'
+
+    return df
 
 
 def is_monopolar(contact_name):
@@ -139,11 +216,13 @@ def json_to_dataframe(localization_data):
     combined_df = pd.concat(all_data)
     return combined_df
 
+
 def get_lead_to_type_mapping(localization_data):
     leads = localization_data["leads"].keys()
     types = [localization_data["leads"][lead]["type"] for lead in leads]
     type_map = dict(zip(leads, types))
     return type_map
+
 
 def guess_localization(subject):
     if subject.find("_") == -1:

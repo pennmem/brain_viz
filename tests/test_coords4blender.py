@@ -16,7 +16,7 @@ def test_extract_lead_and_num():
     assert extract_lead_and_num("11ABC8-11ABC9") == ("11ABC", 8)
     return
 
-def test_output_produced():
+def test_localization_extraction():
     subject = "R1338T"
     basedir = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + "/test_data/{}/".format(subject)
     save_coords_for_blender("R1338T",
@@ -24,3 +24,11 @@ def test_output_produced():
                             localization_file=basedir + "/localization.json")
     assert os.path.exists(basedir + "electrode_coordinates.csv")
     return
+
+
+def test_talstruct_extraction():
+    subject = "R1001P"
+    basedir = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + "/test_data/{}/".format(subject)
+    save_coords_for_blender("R1338T",
+                            basedir)
+    assert os.path.exists(basedir + "electrode_coordinates.csv")

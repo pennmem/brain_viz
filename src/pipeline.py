@@ -12,6 +12,7 @@ from src.coords4blender import save_coords_for_blender
 # Use for building file locations relative to the project root
 PROJECTDIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
+
 class SubjectConfig(luigi.Config):
     """ Genreal Luigi config class for processing single-subject"""
     SUBJECT = luigi.Parameter(default=None)
