@@ -1,17 +1,24 @@
 import io
 import os
-import sys
-import shutil
+import yaml
 import logging
-import datetime
 import subprocess
 import numpy as np
 import pandas as pd
 
+from logging.config import dictConfig
 from src.deltarec import build_prior_stim_results_table
 
+BASE_PATH = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath( __file__))))
 
-# Module level globals. 
+with open(BASE_PATH + '/logging_conf.yaml') as f:
+    config = yaml.safe_load(f.read())
+dictConfig(config)
+logger = logging.getLogger('cml_web.brain_viz')
+
+
+# Module level globals
 CH2 = "~sudas/DARPA/ch2.nii.gz"
 RDIR = "~sudas/bin/localization/template_to_NickOasis"
 GENERIC_AFFINE_TRANSFORM_FILE = RDIR + "/ch22t0GenericAffine.mat"
@@ -39,23 +46,21 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
         Filepath where data based on MRI/CT imaging can be found
 
     """
-
-    start_logging()
     if os.path.exists(imagedir) == False:
         msg = "autloc folder for {} does not exist".format(subject)
-        logging.error(msg)
+        logger.error(msg)
         raise FileNotFoundError(msg)
 
-    logging.info("Initializing prior stim location folder")
+    logger.info("Initializing prior stim location folder")
     workdir = basedir + "/prior_stim/"
     initialize(subject, workdir, imagedir)
 
-    logging.info("Building subject-specific files")
+    logger.info("Building subject-specific files")
     Norig = get_orig_mat(basedir, "vox2ras")
     Torig = get_orig_mat(basedir, "vox2ras-tkr")
     generate_generic_RAS_file(imagedir, workdir, subject)
 
-    logging.info("Getting prior stim results")
+    logger.info("Getting prior stim results")
     prior_stim_df = build_prior_stim_results_table()
     prior_stim_df["contact_name"] = prior_stim_df["contact_name"].apply(standardize)
     prior_stim_df["fs_x"] = np.nan
@@ -65,10 +70,10 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
     subjects = prior_stim_df["subject_id"].unique()
     for stim_subject in subjects:
         if stim_subject in SUBJECT_BLACKLIST:
-            logging.info("Skipping {} because they are blacklisted. Updated the blacklist if this is undesired.".format(subject))
+            logger.info("Skipping {} because they are blacklisted. Updated the blacklist if this is undesired.".format(subject))
             continue
 
-        logging.info("Converting coordinates from stim subject {} to subject {}".format(stim_subject, subject))
+        logger.info("Converting coordinates from stim subject {} to subject {}".format(stim_subject, subject))
         stimulated_bipolars = prior_stim_df[prior_stim_df["subject_id"] == stim_subject]["contact_name"].unique()
         for bipolar_contact in stimulated_bipolars:
             montage_num = prior_stim_df[(prior_stim_df["subject_id"] == stim_subject) &
@@ -112,17 +117,6 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
     prior_stim_df.to_csv(workdir + subject + "_allcords.csv", index=False)
     return
 
-
-def start_logging():
-    """ Create a log file for debugging purposes """
-    now = datetime.datetime.now()
-    now = now.strftime("%Y_%m_%d_%H_%M_%S")
-    basedir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    logging.basicConfig(filename=(basedir + "/logs/contact_mapper_%s.log" % now),
-                        format='[%(levelname)s]: %(asctime)s -- %(message)s',
-                        level=logging.INFO,
-                        datefmt='%m/%d/%Y %I:%M:%S %p')
-    return
 
 def initialize(subject, workdir, imagedir):
     if os.path.exists(workdir) == False:

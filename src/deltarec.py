@@ -1,10 +1,10 @@
 import io
-import os
 import requests
 import pandas as pd
 
 
 BASE_QUERY_URL = "http://rhino2.psych.upenn.edu:8080/explorer/{}/stream?format=csv&token=CML"
+
 
 def build_prior_stim_results_table():
     """ Build the standard "delta memory" table using the events/loclization database

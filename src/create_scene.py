@@ -1,8 +1,19 @@
 import os
 import sys
+import yaml
 import bpy
 import glob
 import logging
+from logging.config import dictConfig
+
+
+BASE_PATH = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath( __file__))))
+
+with open(BASE_PATH + '/logging_conf.yaml') as f:
+    config = yaml.safe_load(f.read())
+dictConfig(config)
+logger = logging.getLogger('cml_web.brain_viz')
 
 bpy.ops.wm.addon_enable(module='blend4web')
 
@@ -26,12 +37,14 @@ def gen_blender_scene(cortexdir, outputdir, priorstimdir, contactdir=None, subje
     save_scene(outputdir)
     return
 
+
 def update_world_settings():
     bpy.context.scene.world.b4w_sky_settings.render_sky = True
     bpy.context.scene.world.use_sky_blend = True
     bpy.context.scene.world.horizon_color = (0.101, 0.181, 0.253)
     bpy.context.scene.world.zenith_color = (0.334, 0.293, 0.276)
     return
+
 
 def setup_color_materials():
     red = make_material('Red',(1,0,0),(1,1,1),1)
@@ -50,6 +63,7 @@ def load_meshes(cortexdir):
             continue # skip lh.pial.obj and rh.pial.obj files
         bpy.ops.import_scene.obj(filepath=cortexpath)
     return
+
 
 def prettify_objects(white):
     for ob in bpy.context.scene.objects:
@@ -96,12 +110,14 @@ def consolidate_hemispheres():
     bpy.data.objects['rh_hcp'].b4w_do_not_batch = True
     return
 
+
 def finalize_object_attributes():
     for o in bpy.data.objects:
         o.b4w_selectable=True
         o.b4w_outlining=True
         o.b4w_do_not_batch=True
     return
+
 
 def add_scene_lighting():
     bpy.ops.object.lamp_add(type='SUN')
@@ -118,6 +134,7 @@ def add_scene_lighting():
     bpy.context.active_object.name = 'Point5'
     return
 
+
 def add_camera():
     bpy.ops.object.camera_add(
         location = (-8.4, 1.3, 1.7),
@@ -126,12 +143,14 @@ def add_camera():
     bpy.context.active_object.name = 'Camera'
     return
 
+
 def save_scene(outputdir):
     blend_outfile = outputdir + '/iEEG_surface.blend'
     bpy.ops.wm.save_mainfile(filepath=blend_outfile)
     json_outfile = outputdir + '/iEEG_surface.json'
     bpy.ops.export_scene.b4w_json(filepath=json_outfile)
     return
+
 
 def add_contacts(contactpath, mono_color, bipo_color, orig_color):
     atlas_color_map = {'monopolar_orig' : orig_color,
@@ -175,7 +194,7 @@ def orient_contacts(contactpath):
                 try:
                     orient_towards(bpy.data.objects[name], bpy.data.objects[orient_contact])
                 except KeyError as e:
-                    logging.error("Unable to find contact %s" % orient_contact)
+                    logger.error("Unable to find contact %s" % orient_contact)
                     continue
             else:
                 orient_towards(bpy.data.objects[name], bpy.data.objects["Empty"])
@@ -249,6 +268,7 @@ def add_prior_stim_sites(filepath):
                 object.parent = bpy.data.objects["all_stim_pos"]
             i += 1
     return
+
 
 def get_normalized_effects(filepath):
     effects = []

@@ -1,5 +1,4 @@
 import os
-import pytest
 import filecmp
 import numpy as np
 import shutil
