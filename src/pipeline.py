@@ -12,6 +12,13 @@ from src.coords4blender import save_coords_for_blender
 # Use for building file locations relative to the project root
 PROJECTDIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
+# luigi uses two 'parent' loggers: luigi and luigi-interface. luigi-interface
+# logs all of the interesting task/worker-related messages, but for some reason
+# it won't allow you to redirect based on a log config file. This is the
+# somewhat hacky work around to be able to log this information somewhere useful
+from luigi.interface import setup_interface_logging
+setup_interface_logging(conf_file=(PROJECTDIR + '/logging.conf'))
+
 
 class SubjectConfig(luigi.Config):
     """ Genreal Luigi config class for processing single-subject"""

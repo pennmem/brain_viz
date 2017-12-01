@@ -1,18 +1,9 @@
-import os
 import sys
-import yaml
 import bpy
 import glob
 import logging
-from logging.config import dictConfig
 
 
-BASE_PATH = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath( __file__))))
-
-with open(BASE_PATH + '/logging_conf.yaml') as f:
-    config = yaml.safe_load(f.read())
-dictConfig(config)
 logger = logging.getLogger('cml_web.brain_viz')
 
 bpy.ops.wm.addon_enable(module='blend4web')

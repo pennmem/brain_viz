@@ -34,6 +34,11 @@ Activate the environment:
 Once the baseline set of packages are installed, you will need to install PTSA separately:
 
  ```conda install -c pennmem ptsa```
+ 
+ There are two places where paths are hard-coded. Both are related to logging. Update the logging_conf_file field in luigi.cfg.
+ This file should point to the logging.conf file in your local repository. Next, update the args() field in the handler_outfile
+ section of the logging.conf file. The first argument should point to a location on disk where the logs from the luigi tasks
+ should be stored.
 
 
 ## Running

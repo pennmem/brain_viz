@@ -1,12 +1,13 @@
 notes.md
 test_data/*
 task_history.db
-config/luigi-state.pickle
+luigi-state.pickle
 logs/
 __pycache__
 */__pycache__/*
 htmlcov/
 .coverage
 .cache/
+.idea/
 **/.cache/*
 docs/
