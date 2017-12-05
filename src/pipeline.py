@@ -71,7 +71,10 @@ class Setup(SubjectConfig, RerunnableTask):
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/lh.pial"),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/rh.pial"),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/lh.aparc.annot"),
-                luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot")]
+                luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot"),
+                luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T00/thickness/{}TemplateToSubject0GenericAffine.mat".format(self.SUBJECT)),
+                luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T00/thickness/{}TemplateToSubject1Warp.nii.gz".format(self.SUBJECT)),
+                luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T01_CT_to_T00_mprageANTs0GenericAffine_RAS.mat")]
 
 
 class HCPAtlasMapping(SubjectConfig, RerunnableTask):
@@ -284,7 +287,9 @@ class GenMappedPriorStimSites(SubjectConfig, RerunnableTask):
 
     def requires(self):
         """ This only depends on the localization pipeline having been run, so leave it blank for now """
-        return
+        return Setup(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
+                     self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
+                     self.FORCE_RERUN)
 
     def run(self):
         build_prior_stim_location_mapping(self.SUBJECT,
