@@ -71,10 +71,11 @@ class Setup(SubjectConfig, RerunnableTask):
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/lh.pial"),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/rh.pial"),
                 luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/lh.aparc.annot"),
-                luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot"),
-                luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T00/thickness/{}TemplateToSubject0GenericAffine.mat".format(self.SUBJECT)),
-                luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T00/thickness/{}TemplateToSubject1Warp.nii.gz".format(self.SUBJECT)),
-                luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T01_CT_to_T00_mprageANTs0GenericAffine_RAS.mat")]
+                luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot")]
+                # Only include the files below if you want to enforce that normalization has to be run
+                #luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T00/thickness/{}TemplateToSubject0GenericAffine.mat".format(self.SUBJECT)),
+                #luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T00/thickness/{}TemplateToSubject1Warp.nii.gz".format(self.SUBJECT)),
+                #luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T01_CT_to_T00_mprageANTs0GenericAffine_RAS.mat")]
 
 
 class HCPAtlasMapping(SubjectConfig, RerunnableTask):
@@ -298,7 +299,9 @@ class GenMappedPriorStimSites(SubjectConfig, RerunnableTask):
         return
 
     def output(self):
-        return luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/prior_stim/" + self.SUBJECT + "_allcords.csv")
+        # If normalization step of localization fails or hasn't been run, this task
+        # will not produce any output
+        return None # luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/prior_stim/" + self.SUBJECT + "_allcords.csv")
 
 
 class BuildBlenderSite(SubjectConfig, RerunnableTask):
@@ -336,10 +339,6 @@ class GenBlenderScene(SubjectConfig, RerunnableTask):
                                                 self.CONTACT, self.TAL,
                                                 self.IMAGE, self.OUTPUT,
                                                 self.FORCE_RERUN),
-                GenMappedPriorStimSites(self.SUBJECT, self.SUBJECT_NUM,
-                                        self.BASE, self.CORTEX, self.CONTACT,
-                                        self.TAL, self.IMAGE, self.OUTPUT,
-                                        self.FORCE_RERUN),
                 SplitHCPSurface(self.SUBJECT, self.SUBJECT_NUM,
                                 self.BASE, self.CORTEX, self.CONTACT,
                                 self.TAL, self.IMAGE, self.OUTPUT,
@@ -347,6 +346,8 @@ class GenBlenderScene(SubjectConfig, RerunnableTask):
 
     def run(self):
         subject_stimfile = self.BASE.format(self.SUBJECT) + "/prior_stim/" + self.SUBJECT + "_allcords.csv"
+        if os.path.exists(subject_stimfile) == False:
+            subject_stimfile = ''
         subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
                         "-b",
                         PROJECTDIR + "/iEEG_surface_template/empty.blend",

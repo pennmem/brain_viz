@@ -50,6 +50,17 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
         msg = "autloc folder for {} does not exist".format(subject)
         logger.error(msg)
         raise FileNotFoundError(msg)
+                #luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T00/thickness/{}TemplateToSubject0GenericAffine.mat".format(self.SUBJECT)),
+                #luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T00/thickness/{}TemplateToSubject1Warp.nii.gz".format(self.SUBJECT)),
+                #luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T01_CT_to_T00_mprageANTs0GenericAffine_RAS.mat")]
+
+    normalization_files = ["/T00/thickness/{}TemplateToSubject0GenericAffine.mat",
+                           "/T00/thickness/{}TemplateToSubject1Warp.nii.gz",
+                           "/T01_CT_to_T00_mprageANTs0GenericAffine_RAS.mat"]
+    for required_file in normalization_files:
+        if os.path.exists(required_file.format(subject)) == False:
+            logger.warning("Unable to find file required for mapping: {}".format(required_file))
+            return
 
     logger.info("Initializing prior stim location folder")
     workdir = basedir + "/prior_stim/"

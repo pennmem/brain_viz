@@ -9,7 +9,7 @@ logger = logging.getLogger('cml_web.brain_viz')
 bpy.ops.wm.addon_enable(module='blend4web')
 
 
-def gen_blender_scene(cortexdir, outputdir, priorstimdir, contactdir=None, subject=None, subject_num=None):
+def gen_blender_scene(cortexdir, outputdir, priorstimdir='', contactdir=None, subject=None, subject_num=None):
     update_world_settings()
     red, blue, green, white = setup_color_materials()
     load_meshes(cortexdir)
@@ -21,7 +21,10 @@ def gen_blender_scene(cortexdir, outputdir, priorstimdir, contactdir=None, subje
         add_contacts(contactdir + '/electrode_coordinates.csv', red, blue, green)
         orient_contacts(contactdir + '/electrode_coordinates.csv')
 
-    add_prior_stim_sites(priorstimdir)
+    # Allow the viz to be built if the prior stim site mapping failed. This happens when
+    # the normalization step of the localization pipeline fails
+    if priorstimdir != '':
+        add_prior_stim_sites(priorstimdir)
     finalize_object_attributes()
     add_scene_lighting()
     add_camera()
