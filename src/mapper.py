@@ -124,17 +124,20 @@ def initialize(subject, workdir, imagedir):
 
     subprocess.run("c3d " + CH2 + " -scale 0 -o " + workdir + subject +\
                    "_stimdeltarec_mni.nii.gz",
-                   shell=True)
+                   shell=True,
+                   check=True)
 
     subprocess.run("c3d " + imagedir + "T00_" + subject +\
                    "_mprage.nii.gz -scale 0 -o " + workdir + subject +\
                    "_stimdeltarec_target_T1.nii.gz",
-                   shell=True)
+                   shell=True,
+                   check=True)
 
     subprocess.run("c3d " + imagedir + "T01_" + subject +\
                    "_CT.nii.gz  -scale 0 -o " + workdir + subject +\
                    "_stimdeltarec_target_CT.nii.gz",
-                   shell=True)
+                   shell=True,
+                   check=True)
     return
 
 
@@ -376,7 +379,7 @@ def CT_transform(imagedir, workdir, warp_file, affine_transform_file, subject, s
                    '/T00/thickness/' + subject + 'TemplateToSubject1Warp.nii.gz -t ' +\
                    imagedir + '/T00/thickness/' + subject + 'TemplateToSubject0GenericAffine.mat -t ' + \
                    workdir + subject + '_T01_CT_to_T00_mprageANTs0GenericAffine_RAS_itk.txt',
-                   shell=True)
+                   shell=True, check=True)
     return
 
 def T1_transform(imagedir, workdir, warp_file, affine_transform_file, subject, stim_subject):
@@ -387,7 +390,7 @@ def T1_transform(imagedir, workdir, warp_file, affine_transform_file, subject, s
                    ' -t ' + affine_transform_file + ' -t ' + imagedir +\
                    '/T00/thickness/' + subject + 'TemplateToSubject1Warp.nii.gz -t ' +\
                    imagedir + '/T00/thickness/' + subject + 'TemplateToSubject0GenericAffine.mat',
-                   shell=True)
+                   shell=True, check=True)
 
     return
 
