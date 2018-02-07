@@ -298,7 +298,9 @@ class GenMappedPriorStimSites(SubjectConfig, RerunnableTask):
         return
 
     def output(self):
-        return luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/prior_stim/" + self.SUBJECT + "_allcords.csv")
+        return [luigi.LocalTarget(self.BASE.format(self.SUBJECT) +
+                                  "/prior_stim/" + self.SUBJECT +
+                                  "_allcords.csv")]
 
 
 class BuildBlenderSite(SubjectConfig, RerunnableTask):
