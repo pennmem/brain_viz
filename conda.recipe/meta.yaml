@@ -30,9 +30,7 @@ set deps = [
   "numpy>=1.13.3",
   "requests>=2.18",
   "yaml=0.1.7",
-  "ptsa=1.1.4"
-  "pywavelets=0.5.2",
-  "xarray=0.9.6",
+  "ptsa=1.1.5"
 ]
 %}
 
