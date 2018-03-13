@@ -1,0 +1,57 @@
+# Read data from setup.py
+{% set setup_data = load_setup_py_data() %}
+
+package:
+  name: brainviewer
+  version: 1.0.0
+
+source:
+  git_url: ../
+
+build:
+  # If this is a new build for the same version, increment the build number by
+  # setting the PKG_BUILDNUM environment variable. Without setting, this
+  # defaults to 0.
+  number: 0
+
+  # Specify additional env vars pass through.
+  # Variables that are accessible by default are documented at:
+  # https://conda.io/docs/user-guide/tasks/build-packages/environment-variables.html
+  #
+  # script_env:
+  #   - ENV_VAR_HERE
+
+# Common dependencies that need to be listed in both the build and run
+# subsections of the requirements section.
+{%
+set deps = [
+  "luigi>=2.7.0",
+  "pandas>=0.20.3",
+  "numpy>=1.13.3",
+  "requests>=2.18",
+  "yaml=0.1.7",
+  "ptsa=1.1.4"
+  "pywavelets=0.5.2",
+  "xarray=0.9.6",
+]
+%}
+
+# Dependencies require the pennmem channel
+requirements:
+  build:
+    - python 2.7
+    - setuptools
+    - pandas>=0.20.3
+#    {% for dep in deps %}
+#    - {{ dep }}
+#    {% endfor %}
+  run:
+    - python {{ python }}
+#    {% for dep in deps %}
+    - pandas>=0.20.3
+#    {% endfor %}
+    # - vs2015_runtime  [win]
+
+about:
+  home: 'blah'
+  summary: 'summary'

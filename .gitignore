@@ -11,3 +11,4 @@ htmlcov/
 .idea/
 **/.cache/*
 docs/
+build/
