@@ -3,7 +3,7 @@
 
 package:
   name: brainviewer
-  version: 1.0.0
+  version: {{ setup_data.get('version') }}
 
 source:
   git_url: ../
