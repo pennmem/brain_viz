@@ -41,17 +41,15 @@ requirements:
   build:
     - python 2.7
     - setuptools
-    - pandas>=0.20.3
-#    {% for dep in deps %}
-#    - {{ dep }}
-#    {% endfor %}
+    {% for dep in deps %}
+    - {{ dep }}
+    {% endfor %}
   run:
     - python {{ python }}
-#    {% for dep in deps %}
-    - pandas>=0.20.3
-#    {% endfor %}
-    # - vs2015_runtime  [win]
+    {% for dep in deps %}
+    - {{ dep }}
+    {% endfor %}
 
 about:
-  home: 'blah'
-  summary: 'summary'
+  home: {{ setup_data.get('url') }}
+  summary: {{ setup_data.get('description') }}
