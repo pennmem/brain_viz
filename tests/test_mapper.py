@@ -3,7 +3,7 @@ import filecmp
 import numpy as np
 import shutil
 
-import src.mapper as mapper
+import brainviewer.mapper as mapper
 
 
 def setup_directories(subject):
