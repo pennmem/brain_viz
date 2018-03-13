@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from setuptools import setup, find_packages
-from src import __version__
+from brainviewer import __version__
 
 with open('README.md') as readme_file:
     readme = readme_file.read()

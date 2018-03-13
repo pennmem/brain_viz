@@ -48,6 +48,10 @@ requirements:
     - {{ dep }}
     {% endfor %}
 
+test:
+  imports:
+    - brainviewer
+
 about:
   home: {{ setup_data.get('url') }}
   summary: {{ setup_data.get('description') }}
