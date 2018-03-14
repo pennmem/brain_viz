@@ -12,7 +12,7 @@ build:
   # If this is a new build for the same version, increment the build number by
   # setting the PKG_BUILDNUM environment variable. Without setting, this
   # defaults to 0.
-  number: {{ environ.get("PKG_BUILDNUM", 0) }}
+  number: {{ environ.get("PKG_BUILDNUM", 0) }
 
   # Specify additional env vars pass through.
   # Variables that are accessible by default are documented at:
@@ -37,7 +37,7 @@ set deps = [
 # Dependencies require the pennmem channel
 requirements:
   build:
-    - python 2.7
+    - python {{ python }}
     - setuptools
     {% for dep in deps %}
     - {{ dep }}
