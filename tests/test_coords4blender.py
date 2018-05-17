@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import subprocess
 
-from src.coords4blender import save_coords_for_blender, extract_lead_and_num
+from brainviewer.coords4blender import save_coords_for_blender, extract_lead_and_num
 
 
 def test_extract_lead_and_num():

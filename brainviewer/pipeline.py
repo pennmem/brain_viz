@@ -4,10 +4,10 @@ import shutil
 import luigi
 import subprocess
 
-from src.rerun import RerunnableTask
-from src.mapper import build_prior_stim_location_mapping
-from src.deltarec import build_prior_stim_results_table
-from src.coords4blender import save_coords_for_blender
+from brainviewer.rerun import RerunnableTask
+from brainviewer.mapper import build_prior_stim_location_mapping
+from brainviewer.deltarec import build_prior_stim_results_table
+from brainviewer.coords4blender import save_coords_for_blender
 
 # Use for building file locations relative to the project root
 PROJECTDIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
@@ -137,12 +137,12 @@ class SplitHCPSurface(SubjectConfig, RerunnableTask):
         subprocess.run(PROJECTDIR + "/bin/annot2dpv rh.HCP-MMP1.annot rh.HCP-MMP1.annot.dpv", shell=True, check=True)
         subprocess.run(PROJECTDIR + "/bin/splitsrf lh.pial.srf lh.HCP-MMP1.annot.dpv lh.hcp", shell=True, check=True)
         subprocess.run(PROJECTDIR + "/bin/splitsrf rh.pial.srf rh.HCP-MMP1.annot.dpv rh.hcp", shell=True, check=True)
-        os.chdir(PROJECTDIR + "/src/")
+        os.chdir(PROJECTDIR + "/brainviewer/")
 
         # Convert .srf files to .obj
         hcp_surfaces = glob.glob(self.CORTEX.format(self.SUBJECT) + "/*.hcp.*.srf")
         for surface in hcp_surfaces:
-            subprocess.run(PROJECTDIR + "/src/srf2obj " + surface + " > " + surface.replace(".srf", ".obj"),
+            subprocess.run(PROJECTDIR + "/brainviewer/srf2obj " + surface + " > " + surface.replace(".srf", ".obj"),
                            shell=True,
                            check=True)
         return
@@ -175,14 +175,14 @@ class FreesurferToWavefront(SubjectConfig, RerunnableTask):
         shutil.move(self.CORTEX.format(self.SUBJECT) + "/lh.pial.asc", self.CORTEX.format(self.SUBJECT) + "/lh.pial.srf")
         shutil.move(self.CORTEX.format(self.SUBJECT) + "/rh.pial.asc", self.CORTEX.format(self.SUBJECT) + "/rh.pial.srf")
 
-        subprocess.run(PROJECTDIR + "/src/srf2obj " +
+        subprocess.run(PROJECTDIR + "/brainviewer/srf2obj " +
                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.srf " +
                        "> " +
                        self.CORTEX.format(self.SUBJECT) + "/lh.pial.obj",
                        shell=True,
                        check=True)
 
-        subprocess.run(PROJECTDIR + "/src/srf2obj " +
+        subprocess.run(PROJECTDIR + "/brainviewer/srf2obj " +
                         self.CORTEX.format(self.SUBJECT) + "/rh.pial.srf " +
                        "> " +
                        self.CORTEX.format(self.SUBJECT) + "/rh.pial.obj",
@@ -210,7 +210,7 @@ class SplitCorticalSurface(SubjectConfig, RerunnableTask):
         subprocess.run(PROJECTDIR + "/bin/annot2dpv rh.aparc.annot rh.aparc.annot.dpv", shell=True, check=True)
         subprocess.run(PROJECTDIR + "/bin/splitsrf lh.pial.srf lh.aparc.annot.dpv lh.pial_roi", shell=True, check=True)
         subprocess.run(PROJECTDIR + "/bin/splitsrf rh.pial.srf rh.aparc.annot.dpv rh.pial_roi", shell=True, check=True)
-        os.chdir(PROJECTDIR + "/src/")
+        os.chdir(PROJECTDIR + "/brainviewer/")
 
         surf_num_dict = {"0001":"Unmeasured.obj",
                          "0002":"BanksSuperiorTemporal.obj",
@@ -250,7 +250,7 @@ class SplitCorticalSurface(SubjectConfig, RerunnableTask):
 
         for hemisphere in ["lh", "rh"]:
             for surface in surf_num_dict.keys():
-                subprocess.run(PROJECTDIR + "/src/srf2obj " +
+                subprocess.run(PROJECTDIR + "/brainviewer/srf2obj " +
                                self.CORTEX.format(self.SUBJECT) + "/" + hemisphere + ".pial_roi." + surface + ".srf > " +
                                self.CORTEX.format(self.SUBJECT) + "/" + hemisphere + "." + surf_num_dict[surface],
                                shell=True,
@@ -354,7 +354,7 @@ class GenBlenderScene(SubjectConfig, RerunnableTask):
                         PROJECTDIR + "/iEEG_surface_template/empty.blend",
                         "-b",
                         "--python",
-                        PROJECTDIR + "/src/create_scene.py",
+                        PROJECTDIR + "/brainviewer/create_scene.py",
                         "--",
                         self.SUBJECT,
                         self.SUBJECT_NUM,
@@ -415,7 +415,7 @@ class BuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
                         PROJECTDIR + "/iEEG_surface_template/empty.blend",
                         "-b",
                         "--python",
-                        PROJECTDIR + "/src/create_scene.py",
+                        PROJECTDIR + "/brainviewer/create_scene.py",
                         "--",
                         self.AVG_ROI,
                         self.OUTPUT,

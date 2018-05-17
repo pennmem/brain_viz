@@ -36,7 +36,7 @@ def run_task(subject, subject_num, task, base, cortex, contact, tal, output):
     assert os.path.exists(base)
     assert os.path.exists(contact)
     assert os.path.exists(tal)
-    command = 'PYTHONPATH="." luigi --module src.pipeline {} --local-scheduler\
+    command = 'PYTHONPATH="." luigi --module brainviewer.pipeline {} --local-scheduler\
                --SUBJECT {}\
                --SUBJECT-NUM {}\
                --BASE {}\
@@ -144,7 +144,7 @@ def test_gen_avg_brain(subject, subject_num):
     if os.path.exists(output) == True:
         shutil.rmtree(output)
 
-    command = 'PYTHONPATH="." luigi --module src.pipeline BuildPriorStimAvgBrain --local-scheduler\
+    command = 'PYTHONPATH="." luigi --module brainviewer.pipeline BuildPriorStimAvgBrain --local-scheduler\
                --AVG-ROI {}\
                --OUTPUT {}'.format(cortex, output)
     subprocess.run(command,

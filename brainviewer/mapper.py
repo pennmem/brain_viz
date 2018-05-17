@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from logging.config import dictConfig
-from src.deltarec import build_prior_stim_results_table
+from brainviewer.deltarec import build_prior_stim_results_table
 
 BASE_PATH = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath( __file__))))
