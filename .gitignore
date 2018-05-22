@@ -12,3 +12,6 @@ htmlcov/
 **/.cache/*
 docs/
 build/
+**/.DS_store
+.pytest_cache/
+
