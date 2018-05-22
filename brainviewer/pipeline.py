@@ -1,430 +1,278 @@
 import os
-import glob
 import shutil
-import luigi
 import subprocess
+import functools
+from pkg_resources import resource_filename
+from typing import Optional
 
-from brainviewer.rerun import RerunnableTask
-from brainviewer.mapper import build_prior_stim_location_mapping
-from brainviewer.deltarec import build_prior_stim_results_table
+from cml_pipelines import make_task
+from cml_pipelines.paths import FilePaths
 from brainviewer.coords4blender import save_coords_for_blender
 
-# Use for building file locations relative to the project root
-PROJECTDIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-
-# luigi uses two 'parent' loggers: luigi and luigi-interface. luigi-interface
-# logs all of the interesting task/worker-related messages, but for some reason
-# it won't allow you to redirect based on a log config file. This is the
-# somewhat hacky work around to be able to log this information somewhere useful
-from luigi.interface import setup_interface_logging
-setup_interface_logging(conf_file=(PROJECTDIR + '/logging.conf'))
+datafile = functools.partial(resource_filename, 'brainviewer.templates')
+bin_files = functools.partial(resource_filename, 'brainviewer.bin')
 
 
-class SubjectConfig(luigi.Config):
-    """ Genreal Luigi config class for processing single-subject"""
-    SUBJECT = luigi.Parameter(default=None)
-    SUBJECT_NUM = luigi.Parameter(default=None)
-    BASE = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}")
-    CORTEX = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}/surf/roi")
-    CONTACT = luigi.Parameter(default="/data10/RAM/subjects/{}/tal/coords")
-    TAL = luigi.Parameter(default="/data10/RAM/subjects/{}/tal")
-    IMAGE = luigi.Parameter(default="/data10/RAM/subjects/{}/imaging/autoloc/")
-    OUTPUT = luigi.Parameter(default="/reports/r1/subjects/{}/reports/iEEG_surface")
-    FORCE_RERUN = luigi.Parameter(default=False)
+def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
+                                   paths: Optional[FilePaths] = None,
+                                   force_rerun: Optional[bool] = False,
+                                   blender: Optional[bool] = False):
+    """ Generate the underlying data necessary to constract a 3D brain view
+    
+    Parameters
+    ----------
+    subject_id: str
+        Subject identifier
+    localization: int
+        Localization to use for building the brain viewer
 
-
-class AllConfig(luigi.Config):
-    BASE = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}")
-    CORTEX = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/{}/surf/roi")
-    CONTACT = luigi.Parameter(default="/data10/RAM/subjects/{}/tal/coords")
-    TAL = luigi.Parameter(default="/data10/RAM/subjects/{}/tal")
-    IMAGE = luigi.Parameter(default="/data10/RAM/subjects/{}/imaging/autoloc/")
-    OUTPUT = luigi.Parameter(default="/reports/r1/subjects/{}/reports/iEEG_surface")
-
-
-class AvgBrainConfig(luigi.Config):
-    OUTPUT = luigi.Parameter(default="/reports/r1/subjects/avg/")
-    AVG_ROI = luigi.Parameter(default="/data10/eeg/freesurfer/subjects/average/surf/roi/")
-
-
-class Setup(SubjectConfig, RerunnableTask):
-    """
-        Checks that the required freesurfer cortical surface and coordinate
-        name files exist for the given SUBJECT
-    """
-
-    def requires(self):
-        return
-
-    def run(self):
-        if (os.path.exists(self.CORTEX.format(self.SUBJECT)) == False):
-            os.mkdir(self.CORTEX.format(self.SUBJECT))
-        shutil.copy(self.BASE.format(self.SUBJECT) + "/surf/lh.pial", self.CORTEX.format(self.SUBJECT))
-        shutil.copy(self.BASE.format(self.SUBJECT) + "/surf/rh.pial", self.CORTEX.format(self.SUBJECT))
-        shutil.copy(self.BASE.format(self.SUBJECT) + "/label/lh.aparc.annot", self.CORTEX.format(self.SUBJECT))
-        shutil.copy(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot", self.CORTEX.format(self.SUBJECT))
-
-        return
-
-    def output(self):
-        return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT)),
-                luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/lh.pial"),
-                luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/surf/rh.pial"),
-                luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/lh.aparc.annot"),
-                luigi.LocalTarget(self.BASE.format(self.SUBJECT) + "/label/rh.aparc.annot"),
-                luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T00/thickness/{}TemplateToSubject0GenericAffine.mat".format(self.SUBJECT)),
-                luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T00/thickness/{}TemplateToSubject1Warp.nii.gz".format(self.SUBJECT)),
-                luigi.LocalTarget(self.IMAGE.format(self.SUBJECT) + "/T01_CT_to_T00_mprageANTs0GenericAffine_RAS.mat")]
-
-
-class HCPAtlasMapping(SubjectConfig, RerunnableTask):
-    """ Maps the HCP atlas from the fs average brain to the current subject
-
-    This task relies on the mri_surf2surf freesurfer command, which uses the
-    FREESURFER_HOME and SUBJECTS_DIR environment variables to search for input
-    files and save output. If testing, be sure that these are updated to avoid
-    writing to the production file system locations.
+    Keyword Arguments
+    -----------------
+     paths: `cml_pipelines.paths.FilePaths`
+        Container for passing around a group of related file paths
+    force_rerun: bool, default False
+        If true, then forefully re-run all tasks
+    blender: bool, default False
+        If true, build the Blender-based 3D standalone file
 
     """
-    def requires(self):
-        return Setup(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
-                     self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
-                     self.FORCE_RERUN)
+    if paths is None:
+        paths = setup_paths(subject_id)
+
+    setup_status = make_task(setup, subject_id, paths)
+    electrode_coord_path = save_coords_for_blender(subject_id, localization,
+                                                   paths.tal,
+                                                   rootdir=paths.root)
+    fs_files = freesurfer_to_wavefront(paths, setup_status)
+
+    if blender:
+        # Complete the blender-related tasks
+        setup_standalone_blender_scene(paths)
+        gen_blender_scene()
+
+    return fs_files.compute()
 
 
-    def run(self):
-        subprocess.run("mri_surf2surf " +
-                       "--srcsubject fsaverage_temp " +
-                       "--sval-annot HCP-MMP1.annot " +
-                       "--trgsubject {} ".format(self.SUBJECT) +
-                       "--trgsurfval HCP-MMP1.annot " +
-                       "--hemi lh",
-                       shell=True,
-                       check=True)
-        subprocess.run("mri_surf2surf " +
-                       "--srcsubject fsaverage_temp " +
-                       "--sval-annot HCP-MMP1.annot " +
-                       "--trgsubject {} ".format(self.SUBJECT) +
-                       "--trgsurfval HCP-MMP1.annot " +
-                       "--hemi rh",
-                       shell=True,
-                       check=True)
-        shutil.copy(self.BASE.format(self.SUBJECT) + "/label/lh.HCP-MMP1.annot",
-                    self.CORTEX.format(self.SUBJECT))
-        shutil.copy(self.BASE.format(self.SUBJECT) + "/label/rh.HCP-MMP1.annot",
-                    self.CORTEX.format(self.SUBJECT))
-        return
-
-    def output(self):
-        return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/lh.HCP-MMP1.annot"),
-                luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/rh.HCP-MMP1.annot")]
-
-
-class SplitHCPSurface(SubjectConfig, RerunnableTask):
-    """ Splits subject's surface into regions based on the HCP atlas """
-    def requires(self):
-        return [HCPAtlasMapping(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
-                               self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
-                               self.FORCE_RERUN),
-                FreesurferToWavefront(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
-                                      self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
-                                      self.FORCE_RERUN)]
-
-
-    def run(self):
-        os.chdir(self.CORTEX.format(self.SUBJECT))
-        subprocess.run(PROJECTDIR + "/bin/annot2dpv lh.HCP-MMP1.annot lh.HCP-MMP1.annot.dpv", shell=True, check=True)
-        subprocess.run(PROJECTDIR + "/bin/annot2dpv rh.HCP-MMP1.annot rh.HCP-MMP1.annot.dpv", shell=True, check=True)
-        subprocess.run(PROJECTDIR + "/bin/splitsrf lh.pial.srf lh.HCP-MMP1.annot.dpv lh.hcp", shell=True, check=True)
-        subprocess.run(PROJECTDIR + "/bin/splitsrf rh.pial.srf rh.HCP-MMP1.annot.dpv rh.hcp", shell=True, check=True)
-        os.chdir(PROJECTDIR + "/brainviewer/")
-
-        # Convert .srf files to .obj
-        hcp_surfaces = glob.glob(self.CORTEX.format(self.SUBJECT) + "/*.hcp.*.srf")
-        for surface in hcp_surfaces:
-            subprocess.run(PROJECTDIR + "/brainviewer/srf2obj " + surface + " > " + surface.replace(".srf", ".obj"),
-                           shell=True,
-                           check=True)
-        return
-
-    def output(self):
-        # A couple of hundred objects are produced, so just check for a couple
-        return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/rh.hcp.0001.obj"),
-                luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/lh.hcp.0001.obj")]
-
-
-class FreesurferToWavefront(SubjectConfig, RerunnableTask):
-    """ Converts freesurfer cortical surface binary files to wavefront object files """
-
-    def requires(self):
-        return Setup(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
-                     self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
-                     self.FORCE_RERUN)
-
-    def run(self):
-        subprocess.run("mris_convert " +
-                       self.CORTEX.format(self.SUBJECT) + "/lh.pial " +
-                       self.CORTEX.format(self.SUBJECT) + "/lh.pial.asc",
-                       shell=True,
-                       check=True)
-        subprocess.run("mris_convert " +
-                       self.CORTEX.format(self.SUBJECT) + "/rh.pial " +
-                       self.CORTEX.format(self.SUBJECT) + "/rh.pial.asc",
-                       shell=True,
-                       check=True)
-        shutil.move(self.CORTEX.format(self.SUBJECT) + "/lh.pial.asc", self.CORTEX.format(self.SUBJECT) + "/lh.pial.srf")
-        shutil.move(self.CORTEX.format(self.SUBJECT) + "/rh.pial.asc", self.CORTEX.format(self.SUBJECT) + "/rh.pial.srf")
-
-        subprocess.run(PROJECTDIR + "/brainviewer/srf2obj " +
-                       self.CORTEX.format(self.SUBJECT) + "/lh.pial.srf " +
-                       "> " +
-                       self.CORTEX.format(self.SUBJECT) + "/lh.pial.obj",
-                       shell=True,
-                       check=True)
-
-        subprocess.run(PROJECTDIR + "/brainviewer/srf2obj " +
-                        self.CORTEX.format(self.SUBJECT) + "/rh.pial.srf " +
-                       "> " +
-                       self.CORTEX.format(self.SUBJECT) + "/rh.pial.obj",
-                       shell=True,
-                       check=True)
-
-        return
-
-    def output(self):
-        return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/lh.pial.obj"),
-                luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/rh.pial.obj")]
-
-
-class SplitCorticalSurface(SubjectConfig, RerunnableTask):
-    """ Splits the left/right hemisphere wavefront objects into independent cortical surfaces """
-
-    def requires(self):
-        return FreesurferToWavefront(self.SUBJECT, self.SUBJECT_NUM, self.BASE,
-                                     self.CORTEX, self.CONTACT, self.TAL,
-                                     self.IMAGE, self.OUTPUT, self.FORCE_RERUN)
-
-    def run(self):
-        os.chdir(self.CORTEX.format(self.SUBJECT))
-        subprocess.run(PROJECTDIR + "/bin/annot2dpv lh.aparc.annot lh.aparc.annot.dpv", shell=True, check=True)
-        subprocess.run(PROJECTDIR + "/bin/annot2dpv rh.aparc.annot rh.aparc.annot.dpv", shell=True, check=True)
-        subprocess.run(PROJECTDIR + "/bin/splitsrf lh.pial.srf lh.aparc.annot.dpv lh.pial_roi", shell=True, check=True)
-        subprocess.run(PROJECTDIR + "/bin/splitsrf rh.pial.srf rh.aparc.annot.dpv rh.pial_roi", shell=True, check=True)
-        os.chdir(PROJECTDIR + "/brainviewer/")
-
-        surf_num_dict = {"0001":"Unmeasured.obj",
-                         "0002":"BanksSuperiorTemporal.obj",
-                         "0003":"CACingulate.obj",
-                         "0004":"MiddleFrontalCaudal.obj",
-                         "0005":"Cuneus.obj",
-                         "0006":"Entorhinal.obj",
-                         "0007":"Fusiform.obj",
-                         "0008":"InferiorParietal.obj",
-                         "0009":"InferiorTemporal.obj",
-                         "0010":"Isthmus.obj",
-                         "0011":"LateralOccipital.obj",
-                         "0012":"OrbitalFrontal.obj",
-                         "0013":"Lingual.obj",
-                         "0014":"MedialOrbitalFrontal.obj",
-                         "0015":"MiddleTemporal.obj",
-                         "0016":"Parahippocampal.obj",
-                         "0017":"ParacentralLobule.obj",
-                         "0018":"InfFrontalParsOpercularis.obj",
-                         "0019":"InfFrontalParsOrbitalis.obj",
-                         "0020":"InfFrontalParsTriangularis.obj",
-                         "0021":"Pericalcarine.obj",
-                         "0022":"Post-Central.obj",
-                         "0023":"PosteriorCingulate.obj",
-                         "0024":"Pre-Central.obj",
-                         "0025":"PreCuneus.obj",
-                         "0026":"RACingulate.obj",
-                         "0027":"MiddleFrontalRostral.obj",
-                         "0028":"SuperiorFrontal.obj",
-                         "0029":"SuperiorParietal.obj",
-                         "0030":"SuperiorTemporal.obj",
-                         "0031":"Supra-Marginal.obj",
-                         "0032":"FrontalPole.obj",
-                         "0033":"TemporalPole.obj",
-                         "0034":"TransverseTemporal.obj",
-                         "0035":"Insula.obj"}
-
-        for hemisphere in ["lh", "rh"]:
-            for surface in surf_num_dict.keys():
-                subprocess.run(PROJECTDIR + "/brainviewer/srf2obj " +
-                               self.CORTEX.format(self.SUBJECT) + "/" + hemisphere + ".pial_roi." + surface + ".srf > " +
-                               self.CORTEX.format(self.SUBJECT) + "/" + hemisphere + "." + surf_num_dict[surface],
-                               shell=True,
-                               check=True)
-        return
-
-    def output(self):
-        # 70 files are output, but just look for the last .obj file that should have been created
-        return [luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/rh.Insula.obj"),
-                luigi.LocalTarget(self.CORTEX.format(self.SUBJECT) + "/lh.Insula.obj")]
-
-
-class GenElectrodeCoordinatesAndNames(SubjectConfig, RerunnableTask):
+def setup_paths(subject_id: str, localization: str):
     """
-        Creates coordinate files out of MATLAB talstructs in the old pipeline
-        and using localization.json in the new pipeline
+        Helper function to produce a `cml_pipelines.paths.FilePaths` object
+        with production paths
+
+    Parameters
+    ----------
+    subject_id: str
+        ID of subject to generate the brain visualization
+
+    localization: str
+        Localization number as a string to use. Typically this is 0.
 
     """
-    def requires(self):
-        return SplitCorticalSurface(self.SUBJECT, self.SUBJECT_NUM, self.BASE,
-                                    self.CORTEX, self.CONTACT, self.TAL,
-                                    self.IMAGE,  self.OUTPUT, self.FORCE_RERUN)
+    subject_localization = _combine_subject_localization(subject_id,
+                                                         localization)
 
-    def run(self):
-        save_coords_for_blender(self.SUBJECT, self.TAL.format(self.SUBJECT))
+    # Common paths used throughout the pipeline
+    BASE = "/data10/eeg/freesurfer/subjects/{}".format(subject_localization)
+    CORTEX = "/data10/eeg/freesurfer/subjects/{}/surf/roi".format(subject_localization)
+    CONTACT = "/data10/RAM/subjects/{}/tal/coords".format(subject_localization)
+    TAL = "/data10/RAM/subjects/{}/tal".format(subject_localization)
+    IMAGE = "/data10/RAM/subjects/{}/imaging/autoloc/".format(subject_localization)
+    OUTPUT = "/reports/r1/subjects/{}/reports/iEEG_surface".format(subject_localization)
 
-    def output(self):
-        return [luigi.LocalTarget(self.TAL.format(self.SUBJECT) +
-                                  "/electrode_coordinates.csv")]
-
-
-class GenMappedPriorStimSites(SubjectConfig, RerunnableTask):
-    """" Creates the prior stim locations and results mapped to this subject's specific brain """
-
-    def requires(self):
-        """ This only depends on the localization pipeline having been run, so leave it blank for now """
-        return Setup(self.SUBJECT, self.SUBJECT_NUM, self.BASE, self.CORTEX,
-                     self.CONTACT, self.TAL, self.IMAGE, self.OUTPUT,
-                     self.FORCE_RERUN)
-
-    def run(self):
-        build_prior_stim_location_mapping(self.SUBJECT,
-                                          self.BASE.format(self.SUBJECT),
-                                          self.IMAGE.format(self.SUBJECT))
-        return
-
-    def output(self):
-        return [luigi.LocalTarget(self.BASE.format(self.SUBJECT) +
-                                  "/prior_stim/" + self.SUBJECT +
-                                  "_allcords.csv")]
+    RHINO_ROOT = "/"
+    paths = FilePaths(RHINO_ROOT, base=BASE, cortex=CORTEX, contact=CONTACT,
+                      tal=TAL, image=IMAGE, output=OUTPUT)
+    return paths
 
 
-class BuildBlenderSite(SubjectConfig, RerunnableTask):
-    """ Creates a single directory site for displaying web-based blender scene """
-    def requires(self):
-        return Setup(self.SUBJECT, self.SUBJECT_NUM,
-                     self.BASE, self.CORTEX,
-                     self.CONTACT, self.TAL,
-                     self.IMAGE, self.OUTPUT,
-                     self.FORCE_RERUN)
+def setup(subject_id: str, localization: str, paths: FilePaths):
+    """
+        Set up directory structure, move starter files, and check for the
+        existence of other files that the full pipeline depends on.
+        Short-circuit if any dependencies are unmet
 
-    def run(self):
-        if os.path.exists(self.OUTPUT.format(self.SUBJECT_NUM)) == False:
-            shutil.copytree(PROJECTDIR + "/iEEG_surface_template/", self.OUTPUT.format(self.SUBJECT_NUM))
-            os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/axial")
-            os.mkdir(self.OUTPUT.format(self.SUBJECT_NUM) + "/coronal")
+    Parameters
+    ----------
+    subject_id: str
+        ID of subject
+    localization: str
+        Localization number to use
+    paths: `cml_pipelines.paths.FilePaths` container for various file paths
 
-        return
+    Returns
+    -------
+    setup_status: bool
+        True if task completed successfully
 
-    def output(self):
-        # More files are copied over, so this is a lazy check of output
-        return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) +
-                                  "/iEEG_surface.html")]
+    """
+    if (os.path.exists(paths.cortex) == False):
+        os.mkdir(paths.cortex)
 
+    subject_localization = _combine_subject_localization(subject_id,
+                                                         localization)
 
-class GenBlenderScene(SubjectConfig, RerunnableTask):
-    """ Generates the blender scene from wavefront object and coordinate files """
+    shutil.copy(os.path.join(paths.base, "surf/lh.pial"), paths.cortex)
+    shutil.copy(os.path.join(paths.base, "surf/rh.pial"), paths.cortex)
+    shutil.copy(os.path.join(paths.base, "label/lh.aparc.annot"), paths.cortex)
+    shutil.copy(os.path.join(paths.base, "label/rh.aparc.annot"), paths.cortex)
 
-    def requires(self):
-        return [BuildBlenderSite(self.SUBJECT, self.SUBJECT_NUM, self.BASE,
-                                self.CORTEX, self.CONTACT, self.TAL, self.IMAGE,
-                                self.OUTPUT, self.FORCE_RERUN),
-                GenElectrodeCoordinatesAndNames(self.SUBJECT, self.SUBJECT_NUM,
-                                                self.BASE, self.CORTEX,
-                                                self.CONTACT, self.TAL,
-                                                self.IMAGE, self.OUTPUT,
-                                                self.FORCE_RERUN),
-                GenMappedPriorStimSites(self.SUBJECT, self.SUBJECT_NUM,
-                                        self.BASE, self.CORTEX, self.CONTACT,
-                                        self.TAL, self.IMAGE, self.OUTPUT,
-                                        self.FORCE_RERUN),
-                SplitHCPSurface(self.SUBJECT, self.SUBJECT_NUM,
-                                self.BASE, self.CORTEX, self.CONTACT,
-                                self.TAL, self.IMAGE, self.OUTPUT,
-                                self.FORCE_RERUN)]
+    # These three files need to exist in order to complete downstream processing
+    assert os.path.exists(
+        os.path.join(paths.image,
+                     "T00/thickness/{}TemplateToSubject0GenericAffine.mat".format(subject_localization)))
+    assert os.path.exists(
+        os.path.join(paths.image,
+                     "T00/thickness/{}TemplateToSubject1Warp.nii.gz".format(subject_localization)))
+    assert os.path.exists(
+        os.path.join(paths.image,
+                     "T01_CT_to_T00_mprageANTs0GenericAffine_RAS.mat"))
 
-    def run(self):
-        subject_stimfile = self.BASE.format(self.SUBJECT) + "/prior_stim/" + self.SUBJECT + "_allcords.csv"
-        subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
-                        "-b",
-                        PROJECTDIR + "/iEEG_surface_template/empty.blend",
-                        "-b",
-                        "--python",
-                        PROJECTDIR + "/brainviewer/create_scene.py",
-                        "--",
-                        self.SUBJECT,
-                        self.SUBJECT_NUM,
-                        self.CORTEX.format(self.SUBJECT),
-                        self.TAL.format(self.SUBJECT),
-                        self.OUTPUT.format(self.SUBJECT_NUM),
-                        subject_stimfile],
-                       check=True)
-        return
-
-    def output(self):
-        return [luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.blend"),
-                luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.bin"),
-                luigi.LocalTarget(self.OUTPUT.format(self.SUBJECT_NUM) + "/iEEG_surface.json")]
+    return True
 
 
-class BuildAll(AllConfig, RerunnableTask):
-    """ Dummy task that triggers scene building for subjects """
-    def requires(self):
-        # Create a dictionary mapping subject numbers to subject identifiers
-        subject_dirs = glob.glob("/reports/r1/subjects/*/")
-        subjects = [path.split('/')[-2] for path in subject_dirs]
-        subject_dict = {}
-        for subject in subjects:
-            match_dirs = glob.glob("/protocols/r1/subjects/R1{}*".format(subject))
-            if len(match_dirs) == 1:
-                subject_dict[subject] = match_dirs[0].split('/')[-1]
-
-        for subject_num, subject_id in subject_dict.items():
-            yield GenBlenderScene(subject_id, subject_num, self.BASE,
-                                  self.CORTEX, self.CONTACT, self.TAL,
-                                  self.IMAGE, self.OUTPUT, self.FORCE_RERUN)
+def setup_standalone_blender_scene(paths: FilePaths):
+    """ Copies the Blender template files to the final destination """
+    template_dir = datafile("iEEG_surface_template/")
+    shutil.copytree(template_dir, paths.output)
+    return
 
 
+def freesurfer_to_wavefront(paths, setup_status) -> FilePaths:
+    """ Convert Freesurfer brain piece models to wavefront format """
+    subprocess.run("mris_convert " +
+                   os.path.join(paths.cortex, "lh.pial ") +
+                   os.path.join(paths.cortex, "lh.pial.asc"),
+                   shell=True,
+                   check=True)
+    subprocess.run("mris_convert " +
+                   os.path.join(paths.corex, "rh.pial ") +
+                   os.path.join(paths.cortex, "rh.pial.asc"),
+                   shell=True,
+                   check=True)
+    shutil.move(os.path.join(paths.cortex, "lh.pial.asc"),
+                os.path.join(paths.cortex, "lh.pial.srf"))
+    shutil.move(os.path.join(paths.cortex, "rh.pial.asc"),
+                os.path.join(paths.cortex, "rh.pial.srf"))
 
-class CanBuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
-    def output(self):
-        return luigi.LocalTarget(self.AVG_ROI + "lh.pial.obj")
+    subprocess.run(" ".join([bin_files("srf2obj"),
+                             os.path.join(paths.cortex, "lh.pial.srf "),
+                             ">",
+                             os.path.join(paths.cortex, "lh.pial.obj")]),
+                   shell=True,
+                   check=True)
+
+    subprocess.run(" ".join([bin_files("srf2obj"),
+                             os.path.join(paths.corex, "rh.pial.srf"),
+                             ">",
+                             os.path.join(paths.cortex, "rh.pial.obj")]),
+                   shell=True,
+                   check=True)
+
+    exp_files = FilePaths(root="/",
+                          rh_obj=os.path.join(paths.cortex, "rh.pial.obj"),
+                          lh_obj=os.path.join(paths.cortex, "lh.pial.obj"))
+
+    return exp_files
 
 
-class BuildPriorStimAvgBrain(AvgBrainConfig, luigi.ExternalTask):
-    """ Creates the visualization showing prior stim locations on the average brain """
-    def requires(self):
-        return CanBuildPriorStimAvgBrain(self.OUTPUT, self.AVG_ROI)
+def avg_hcp_to_subject(subject_id: str, localization: str, paths: FilePaths,
+                       setup_status: bool) -> FilePaths:
+    """ Convert HCP atlas annotation file into subject-specific space
 
-    def run(self):
-        shutil.copytree(PROJECTDIR + "/iEEG_avg_surface_template/", self.OUTPUT)
-        prior_stim_results_df = build_prior_stim_results_table()
-        prior_stim_results_df = prior_stim_results_df[prior_stim_results_df["deltarec"].isnull() == False]
-        del prior_stim_results_df["montage_num"] # not needed in this case
+    Parameters
+    ----------
+    subject_id: str
+        ID of subject
+    localization: str
+        Localization number to use
+    paths: `cml_pipelines.paths.FilePaths` container for various file paths
+    setup_status: bool
+        True if the setup task completed succesfully. The presence of this
+        boolean in the function signature is used to notify the pipeline
+        framework that this task depends on the result of the setup task
 
-        stimfile = self.OUTPUT + "prior_stim_locations.csv"
-        prior_stim_results_df.to_csv(stimfile, index=False)
+    Returns
+    -------
+    setup_status: bool
+        True if task completed successfully
 
-        # run subprocess to generate the blender scene
-        subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
-                        "-b",
-                        PROJECTDIR + "/iEEG_surface_template/empty.blend",
-                        "-b",
-                        "--python",
-                        PROJECTDIR + "/brainviewer/create_scene.py",
-                        "--",
-                        self.AVG_ROI,
-                        self.OUTPUT,
-                        stimfile],
-                       check=True)
+    """
 
-        return
+    subject_localization = _combine_subject_localization(subject_id,
+                                                         localization)
 
-    def output(self):
-        return luigi.LocalTarget(self.OUTPUT + "iEEG_surface.blend")
+    subprocess.run(" ".join(["mri_surf2surf", "--srcsubject fsaverage_temp",
+                             "--sval-annot HCP-MMP1.annot",
+                             "--trgsubject {}".format(subject_localization),
+                             "--trgsurfval HCP-MMP1.annot",
+                             "--hemi lh"]),
+                   shell=True,
+                   check=True)
 
+    subprocess.run(" ".join(["mri_surf2surf",
+                             "--srcsubject fsaverage_temp",
+                             "--sval-annot HCP-MMP1.annot",
+                             "--trgsubject {}".format(subject_localization),
+                             "--trgsurfval HCP-MMP1.annot",
+                             "--hemi rh"]),
+                   shell=True,
+                   check=True)
+
+    shutil.copy(os.path.join(paths.base, "label/lh.HCP-MMP1.annot"),
+                paths.cortex)
+    shutil.copy(os.path.join(paths.base, "label/rh.HCP-MMP1.annot"),
+                paths.cortex)
+
+    exp_files = FilePaths(root="/",
+                          rh_hcp=os.path.join(paths.cortex, "rh.HCP-MMP1.annot"),
+                          lh_hcp=os.path.join(paths.cortex, "lh.HCP-MMP1.annot"))
+
+    return exp_files
+
+
+def gen_mapped_prior_stim_sites(subject_id, paths, setup_status):
+    return
+
+
+def split_cortical_surface(subject_id: str, paths: FilePaths,
+                           fs_to_wav_status: bool):
+    return
+
+
+def split_hcp_surface(subject_id: str, localization: str,  paths: FilePaths,
+                      hcp_map_status: bool, fs_to_wav_status: bool):
+    """
+        Creates individual wavefront object for each region based on the
+        Human Connectome Project (HCP) atlas
+
+    Parameters
+    ----------
+    subject_id: str
+        ID of the subject
+    localization: str
+        Localization number
+    paths: `cml_pipelines.paths.FilePaths` container for common paths
+    hcp_map_status: bool
+        Result of the hcp
+    fs_to_wav_status: bool
+        Result of the freesurfer to wavefront conversion step
+
+    Returns
+    -------
+
+    """
+    return True
+
+
+def gen_blender_scene():
+    return
+
+
+def _combine_subject_localization(subject_id: str, localization: str):
+    """ Helper function to combine subject ID and localization number """
+
+    subject_localization = subject_id
+    if localization != '0':
+        subject_localization = "_".join([subject_id, localization])
+
+    return subject_localization
 
