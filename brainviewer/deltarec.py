@@ -149,7 +149,10 @@ def fix_contact_name(contact_name):
     """
 
     tokens = contact_name.split("-")
-    fixed_contact_name = tokens[0] + " - " + tokens[1]
+    if len(tokens) < 2:
+        return contact_name
+
+    fixed_contact_name = tokens[0].strip() + " - " + tokens[1].strip()
 
     return fixed_contact_name
 
