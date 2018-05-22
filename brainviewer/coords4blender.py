@@ -4,38 +4,72 @@ import itertools
 import pandas as pd
 
 from ptsa.data.readers import TalReader
+from typing import Optional
+from cmlreaders.path_finder import PathFinder
 
 
-def save_coords_for_blender(subject, outdir, localization_file=None):
-    base_localization_path = "/protocols/r1/subjects/{}/localizations/{" \
-                              "}/neuroradiology/current_processed/localization.json"
+OBJ_SCALE_FACTOR = 0.02
 
-    if localization_file is not None:
-        base_localization_path = localization_file
 
-    localization = guess_localization(subject)
-    localization_file = base_localization_path.format(subject, localization)
-    if not os.path.exists(localization_file):
-        # get coordinates from talstruct
-        final_df = extract_coordinates_from_talstructs(subject)
+def save_coords_for_blender(subject_id: str, localization: int, outdir: str,
+                            localization_file: Optional[str] = None,
+                            rootdir: Optional[str] = "/"):
+    """
+        Generates a CSV file with metadata about contacts in the subject's
+        montage
+
+    Parameters
+    ----------
+    subject_id: str
+        ID of the subject
+    localization: int
+        Localization number of the subject to use
+    outdir: str
+        Directory to save the resulting file
+    localization_file: str, default None
+        Default is to look up the localization file to use, but if specified,
+        uses the passed file location
+    rootdir: str
+        Mount point for RHINO
+
+    Returns
+    -------
+    saved_results_path: str
+
+    """
+    use_matlab = False
+    if localization_file is None:
+        finder = PathFinder(subject=subject_id, localization=localization,
+                            rootdir=rootdir)
+        try:
+            localization_file = finder.find('localization')
+        except FileNotFoundError:
+            use_matlab = True
+
+    if use_matlab or not os.path.exists(localization_file):
+        # get coordinates from matlab talstruct
+        subject_localization = subject_id
+        if localization != 0:
+            subject_localization = "_".join(subject_id, str(localization))
+        final_df = extract_coordinates_from_talstructs(subject_localization,
+                                                       rootdir=rootdir)
     else:
         # get coordinates from the new localization.json file
-        final_df = extract_coordinates_from_localization_file(subject,
-                                                              localization_file)
+        final_df = extract_coordinates_from_localization_file(localization_file)
 
     # Scale coordinates
     for col in ['x', 'y', 'z']:
-        final_df[col] = 0.02 * final_df[col]
+        final_df[col] = OBJ_SCALE_FACTOR * final_df[col]
 
     final_df = add_orientation_contact_for_depth_electrodes(final_df)
     final_df = final_df[["contact_name", "contact_type", "x", "y", "z",
                          "atlas", "orient_to"]]
     final_df.to_csv(outdir + "/electrode_coordinates.csv", index=False)
 
-    return final_df
+    return os.path.join(outdir, "electrode_coordinates.csv")
 
 
-def extract_coordinates_from_localization_file(subject, localization_file):
+def extract_coordinates_from_localization_file(localization_file):
     localization_data = read_json(localization_file)
     localization_df = json_to_dataframe(localization_data)
     localization_df["contact_name"] = localization_df["name"]
@@ -79,18 +113,21 @@ def extract_coordinates_from_localization_file(subject, localization_file):
     return final_df
 
 
+def extract_coordinates_from_talstructs(subject_localization, rootdir="/"):
+    talstruct_base_path = os.path.join(rootdir,
+                                       "data10/RAM/subjects/{}/tal/{}_talLocs_database_{}.mat")
 
-
-def extract_coordinates_from_talstructs(subject):
-    talstruct_base_path = "/data10/RAM/subjects/{}/tal/{}_talLocs_database_{" \
-                         "}.mat"
-    bipol_reader = TalReader(filename=talstruct_base_path.format(subject, subject, 'bipol'),
-                             struct_type = 'bi')
+    # TODO: Use PathFinder once the matlab talstructs are available
+    bipol_reader = TalReader(filename=talstruct_base_path.format(subject_localization,
+                                                                 subject_localization,
+                                                                 'bipol'),
+                             struct_type='bi')
     bipol_structs = bipol_reader.read()
 
-    mono_reader = TalReader(filename=talstruct_base_path.format(subject, subject,
-                                                    'monopol'),
-                            struct_type = 'mono')
+    mono_reader = TalReader(filename=talstruct_base_path.format(subject_localization,
+                                                                subject_localization,
+                                                                'monopol'),
+                            struct_type='mono')
     mono_structs = mono_reader.read()
 
     mono_start_df = get_coords(mono_structs, 'monopolar')
@@ -192,7 +229,7 @@ def extract_lead_and_num(contact_name):
     # Iterate over name from the end until integer conversion fails
     name_length = len(contact_name)
     found_start = False
-    for i in range(1 , name_length + 1):
+    for i in range(1, name_length + 1):
         try:
             int_rep = int(contact_name[name_length - i])
             continue
@@ -279,6 +316,5 @@ def add_orientation_contact_for_depth_electrodes(all_coord_df):
                      "orient_to"] = all_coord_df.loc[(all_coord_df["bipolar"] == False) &
                                                      (all_coord_df["depth"] == True) &
                                                      (all_coord_df["num"] < all_coord_df["max_num"]),"monopolar_orient_to"]
-
 
     return all_coord_df
