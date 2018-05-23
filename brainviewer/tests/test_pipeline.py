@@ -1,6 +1,4 @@
-import os
-import functools
-from pkg_resources import resource_filename
+import pytest
 
 from brainviewer.pipeline import *
 from cml_pipelines.paths import FilePaths
@@ -30,13 +28,16 @@ class TestPipeline:
         assert os.path.exists(datafile("output/blender_scene/iEEG_surface.html"))
         shutil.rmtree(datafile("output/blender_scene/"), ignore_errors=True)
 
+    @pytest.mark.rhino
     def test_freesurfer_to_wavefront(self):
         returned_paths = freesurfer_to_wavefront(self.paths, True)
         assert os.path.exists(returned_paths.rh_obj)
         assert os.path.exists(returned_paths.lh_obj)
 
+    @pytest.mark.rhino
     def test_avg_hcp_to_subject(self):
-        # os.environ["FREESURFER_HOME"] = ""
-        # os.environ["SUBJECTS_DIR"] = datafile("")
-        # hcp_status = avg_hcp_to_subject(self.subject_id, self.paths, True)
-        pass
+        returned_paths = avg_hcp_to_subject(self.subject_id, self.localization,
+                                            self.paths, True)
+        assert os.path.exists(returned_paths.rh_hcp)
+        assert os.path.exists(returned_paths.lh_hcp)
+

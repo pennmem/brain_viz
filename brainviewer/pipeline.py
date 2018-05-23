@@ -44,6 +44,8 @@ def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
                                                    paths.tal,
                                                    rootdir=paths.root)
     fs_files = freesurfer_to_wavefront(paths, setup_status)
+    hcp_files = avg_hcp_to_subject(subject_id, localization, paths,
+                                   setup_status)
 
     if blender:
         # Complete the blender-related tasks
@@ -136,7 +138,7 @@ def setup_standalone_blender_scene(paths: FilePaths):
     return
 
 
-def freesurfer_to_wavefront(paths, setup_status) -> FilePaths:
+def freesurfer_to_wavefront(paths: FilePaths, setup_status: bool) -> FilePaths:
     """ Convert Freesurfer brain piece models to wavefront format """
     subprocess.run("mris_convert " +
                    os.path.join(paths.cortex, "lh.pial ") +
@@ -174,7 +176,7 @@ def freesurfer_to_wavefront(paths, setup_status) -> FilePaths:
     return exp_files
 
 
-def avg_hcp_to_subject(subject_id: str, localization: str, paths: FilePaths,
+def avg_hcp_to_subject(subject_id: str, localization: int, paths: FilePaths,
                        setup_status: bool) -> FilePaths:
     """ Convert HCP atlas annotation file into subject-specific space
 
@@ -182,11 +184,11 @@ def avg_hcp_to_subject(subject_id: str, localization: str, paths: FilePaths,
     ----------
     subject_id: str
         ID of subject
-    localization: str
+    localization: int
         Localization number to use
-    paths: `cml_pipelines.paths.FilePaths` container for various file paths
+    paths: :class:`cml_pipelines.paths.FilePaths` container for various file paths
     setup_status: bool
-        True if the setup task completed succesfully. The presence of this
+        True if the setup task completed successfully. The presence of this
         boolean in the function signature is used to notify the pipeline
         framework that this task depends on the result of the setup task
 
@@ -238,7 +240,7 @@ def split_cortical_surface(subject_id: str, paths: FilePaths,
     return
 
 
-def split_hcp_surface(subject_id: str, localization: str,  paths: FilePaths,
+def split_hcp_surface(subject_id: str, localization: int,  paths: FilePaths,
                       hcp_map_status: bool, fs_to_wav_status: bool):
     """
         Creates individual wavefront object for each region based on the
@@ -248,9 +250,9 @@ def split_hcp_surface(subject_id: str, localization: str,  paths: FilePaths,
     ----------
     subject_id: str
         ID of the subject
-    localization: str
+    localization: int
         Localization number
-    paths: `cml_pipelines.paths.FilePaths` container for common paths
+    paths: :class:`cml_pipelines.paths.FilePaths` container for common paths
     hcp_map_status: bool
         Result of the hcp
     fs_to_wav_status: bool
@@ -267,10 +269,11 @@ def gen_blender_scene():
     return
 
 
-def _combine_subject_localization(subject_id: str, localization: str):
+def _combine_subject_localization(subject_id: str, localization: int):
     """ Helper function to combine subject ID and localization number """
 
     subject_localization = subject_id
+    localization = str(localization)
     if localization != '0':
         subject_localization = "_".join([subject_id, localization])
 
