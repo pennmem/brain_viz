@@ -144,7 +144,7 @@ def freesurfer_to_wavefront(paths, setup_status) -> FilePaths:
                    shell=True,
                    check=True)
     subprocess.run("mris_convert " +
-                   os.path.join(paths.corex, "rh.pial ") +
+                   os.path.join(paths.cortex, "rh.pial ") +
                    os.path.join(paths.cortex, "rh.pial.asc"),
                    shell=True,
                    check=True)
@@ -161,7 +161,7 @@ def freesurfer_to_wavefront(paths, setup_status) -> FilePaths:
                    check=True)
 
     subprocess.run(" ".join([bin_files("srf2obj"),
-                             os.path.join(paths.corex, "rh.pial.srf"),
+                             os.path.join(paths.cortex, "rh.pial.srf"),
                              ">",
                              os.path.join(paths.cortex, "rh.pial.obj")]),
                    shell=True,

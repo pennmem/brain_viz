@@ -8,4 +8,4 @@ pytest-cov
 # Pennmem channel
 ptsa
 cml_pipelines>=1.1.0
-cmlreaders>0.2.0
+cmlreaders>=0.2.0
