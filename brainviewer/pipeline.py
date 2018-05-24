@@ -355,12 +355,8 @@ def split_hcp_surface(paths: FilePaths, hcp_files: FilePaths,
                              os.path.join(paths.cortex, "rh.hcp")]),
                    shell=True,
                    check=True)
-    exp_files = FilePaths(root="/", lh_hcp=os.path.join(paths.cortex, "lh.hcp"),
-                          rh_hcp=os.path.join(paths.cortex, "rh.hcp"))
 
-    # Convert .srf files to .obj
-
-    hcp_surfaces = glob.glob(os.path.join(paths.cortex,"/*.hcp.*.srf"))
+    hcp_surfaces = glob.glob(os.path.join(paths.cortex, "*.hcp.*.srf"))
     for surface in hcp_surfaces:
         subprocess.run(" ".join([bin_files("srf2obj"),
                                  surface,
@@ -368,6 +364,11 @@ def split_hcp_surface(paths: FilePaths, hcp_files: FilePaths,
                                  surface.replace(".srf", ".obj")]),
                        shell=True,
                        check=True)
+
+    exp_files = FilePaths(root="/", lh_hcp=os.path.join(paths.cortex,
+                                                        "lh.hcp.0001.obj"),
+                          rh_hcp=os.path.join(paths.cortex,
+                                              "rh.hcp.0001.obj"))
 
     return exp_files
 
