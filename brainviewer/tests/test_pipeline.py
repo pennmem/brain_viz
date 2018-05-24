@@ -11,7 +11,7 @@ class TestPipeline:
     def setup_class(cls):
         cls.paths = FilePaths(datafile("R1291M_1/"), base="", cortex="surf/roi/",
                               image="imaging/autoloc/", tal="tal/",
-                              output="output/blender_scene/")
+                              output="blender_scene/")
         cls.subject_id = "R1291M"
         cls.localization = 1
 
