@@ -24,7 +24,7 @@ class TestPipeline:
         assert os.path.exists(os.path.join(self.paths.cortex, "rh.aparc.annot"))
 
     def test_setup_standalone_blender_scene(self):
-        setup_standalone_blender_scene(self.paths)
+        setup_standalone_blender_scene(self.paths, force_rerun=True)
 
         assert os.path.exists(os.path.join(self.paths.output,
                                            "iEEG_surface.html"))
