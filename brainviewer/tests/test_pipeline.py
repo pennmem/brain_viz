@@ -44,8 +44,8 @@ class TestPipeline:
 
     @pytest.mark.rhino
     def test_split_cortical_surface(self):
-        returned_paths = split_cortical_surface(self.paths, True)
-        assert os.path.exists(returned_paths.lh001)
+        returned_paths = split_cortical_surface(self.paths, self.paths)
+        assert os.path.exists(returned_paths.lh0001)
 
     @classmethod
     def teardown_class(cls):
