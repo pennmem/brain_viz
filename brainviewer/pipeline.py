@@ -18,7 +18,7 @@ def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
                                    force_rerun: Optional[bool] = False,
                                    blender: Optional[bool] = False):
     """ Generate the underlying data necessary to constract a 3D brain view
-    
+
     Parameters
     ----------
     subject_id: str
@@ -39,7 +39,7 @@ def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
     if paths is None:
         paths = setup_paths(subject_id)
 
-    setup_status = make_task(setup, subject_id, paths)
+    setup_status = make_task(setup, subject_id, paths, force_rerun=force_rerun)
     electrode_coord_path = save_coords_for_blender(subject_id, localization,
                                                    paths.tal,
                                                    rootdir=paths.root)
@@ -131,9 +131,14 @@ def setup(subject_id: str, localization: int, paths: FilePaths) -> bool:
     return True
 
 
-def setup_standalone_blender_scene(paths: FilePaths):
+def setup_standalone_blender_scene(paths: FilePaths, force_rerun=False):
     """ Copies the Blender template files to the final destination """
     template_dir = datafile("iEEG_surface_template/")
+    if os.path.exists(paths.output):
+        if not force_rerun:
+            raise RuntimeError("Blender scene already exists. Use force rerun option to overwrite")
+        shutil.rmtree(paths.output)
+
     shutil.copytree(template_dir, paths.output)
     return
 
