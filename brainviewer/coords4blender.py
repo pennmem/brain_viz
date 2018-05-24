@@ -50,7 +50,7 @@ def save_coords_for_blender(subject_id: str, localization: int, outdir: str,
         # get coordinates from matlab talstruct
         subject_localization = subject_id
         if localization != 0:
-            subject_localization = "_".join(subject_id, str(localization))
+            subject_localization = "_".join([subject_id, str(localization)])
         final_df = extract_coordinates_from_talstructs(subject_localization,
                                                        rootdir=rootdir)
     else:
