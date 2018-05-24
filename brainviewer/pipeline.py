@@ -9,6 +9,7 @@ from typing import Optional
 from cml_pipelines import make_task
 from cml_pipelines.paths import FilePaths
 from brainviewer.coords4blender import save_coords_for_blender
+from brainviewer.mapper import build_prior_stim_location_mapping
 
 datafile = functools.partial(resource_filename, 'brainviewer.templates')
 bin_files = functools.partial(resource_filename, 'brainviewer.bin')
@@ -49,6 +50,8 @@ def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
                                    setup_status)
 
     split_files = split_cortical_surface(paths, fs_files)
+    prior_stim = gen_mapped_prior_stim_sites(subject_id, localization, paths,
+                                             setup_status)
 
     if blender:
         # Complete the blender-related tasks
@@ -239,8 +242,16 @@ def avg_hcp_to_subject(subject_id: str, localization: int, paths: FilePaths,
     return exp_files
 
 
-def gen_mapped_prior_stim_sites(subject_id, paths, setup_status):
-    return
+def gen_mapped_prior_stim_sites(subject_id, localization, paths, setup_status):
+    subject_localization = _combine_subject_localization(subject_id,
+                                                         localization)
+    output_file = build_prior_stim_location_mapping(subject_localization,
+                                                    paths.base,
+                                                    paths.image)
+
+    exp_paths = FilePaths(root="/", prior_stim=output_file)
+
+    return exp_paths
 
 
 def split_cortical_surface(paths: FilePaths, fs_to_wav_files: FilePaths) -> FilePaths:

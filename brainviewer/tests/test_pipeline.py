@@ -53,6 +53,14 @@ class TestPipeline:
         assert os.path.exists(returned_paths.lh_hcp)
         assert os.path.exists(returned_paths.rh_hcp)
 
+    @pytest.mark.rhino
+    def test_gen_mapped_prior_stim_sites(self):
+        returned_paths = gen_mapped_prior_stim_sites(self.subject_id,
+                                                     self.localization,
+                                                     self.paths,
+                                                     True)
+        assert os.path.exists(returned_paths.prior_stim)
+
     # @classmethod
     # def teardown_class(cls):
     #     """ Cleanup to run when test cases finish """

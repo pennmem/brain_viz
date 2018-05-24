@@ -1,21 +1,11 @@
 import io
 import os
-import yaml
 import logging
 import subprocess
 import numpy as np
 import pandas as pd
 
-from logging.config import dictConfig
 from brainviewer.deltarec import build_prior_stim_results_table
-
-BASE_PATH = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath( __file__))))
-
-with open(BASE_PATH + '/logging_conf.yaml') as f:
-    config = yaml.safe_load(f.read())
-dictConfig(config)
-logger = logging.getLogger('cml_web.brain_viz')
 
 
 # Module level globals
@@ -46,21 +36,21 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
         Filepath where data based on MRI/CT imaging can be found
 
     """
-    if os.path.exists(imagedir) == False:
+    if os.path.exists(imagedir) is False:
         msg = "autloc folder for {} does not exist".format(subject)
-        logger.error(msg)
+        logging.error(msg)
         raise FileNotFoundError(msg)
 
-    logger.info("Initializing prior stim location folder")
+    logging.info("Initializing prior stim location folder")
     workdir = basedir + "/prior_stim/"
     initialize(subject, workdir, imagedir)
 
-    logger.info("Building subject-specific files")
+    logging.info("Building subject-specific files")
     Norig = get_orig_mat(basedir, "vox2ras")
     Torig = get_orig_mat(basedir, "vox2ras-tkr")
     generate_generic_RAS_file(imagedir, workdir, subject)
 
-    logger.info("Getting prior stim results")
+    logging.info("Getting prior stim results")
     prior_stim_df = build_prior_stim_results_table()
     prior_stim_df["contact_name"] = prior_stim_df["contact_name"].apply(standardize)
     prior_stim_df["fs_x"] = np.nan
@@ -70,10 +60,10 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
     subjects = prior_stim_df["subject_id"].unique()
     for stim_subject in subjects:
         if stim_subject in SUBJECT_BLACKLIST:
-            logger.info("Skipping {} because they are blacklisted. Updated the blacklist if this is undesired.".format(subject))
+            logging.info("Skipping {} because they are blacklisted. Updated the blacklist if this is undesired.".format(subject))
             continue
 
-        logger.info("Converting coordinates from stim subject {} to subject {}".format(stim_subject, subject))
+        logging.info("Converting coordinates from stim subject {} to subject {}".format(stim_subject, subject))
         stimulated_bipolars = prior_stim_df[prior_stim_df["subject_id"] == stim_subject]["contact_name"].unique()
         for bipolar_contact in stimulated_bipolars:
             montage_num = prior_stim_df[(prior_stim_df["subject_id"] == stim_subject) &
@@ -114,8 +104,10 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
     del prior_stim_df['y']
     del prior_stim_df['z']
     del prior_stim_df['montage_num']
-    prior_stim_df.to_csv(workdir + subject + "_allcords.csv", index=False)
-    return
+
+    output_file = "".join([workdir, subject, "_allcords.csv"])
+    prior_stim_df.to_csv(output_file, index=False)
+    return output_file
 
 
 def initialize(subject, workdir, imagedir):
@@ -159,6 +151,7 @@ def generate_generic_RAS_file(imagedir, workdir, subject):
                    '_T01_CT_to_T00_mprageANTs0GenericAffine_RAS_itk.txt',
                    shell=True)
     return
+
 
 def get_mni_coords(subject):
     orig_mni_df = load_orig_mni_coords(subject)
