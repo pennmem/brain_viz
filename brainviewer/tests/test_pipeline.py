@@ -9,14 +9,15 @@ datafile = functools.partial(resource_filename, 'brainviewer.tests.data')
 class TestPipeline:
     @classmethod
     def setup_class(cls):
-        cls.paths = FilePaths(datafile(""), base="", cortex="surf/roi/",
-                              image="", tal="", output="output/blender_scene/")
-        cls.subject_id = "R1405E"
-        cls.localization = 0
+        cls.paths = FilePaths(datafile("R1291M_1/"), base="", cortex="surf/roi/",
+                              image="imaging/autoloc/", tal="tal/",
+                              output="output/blender_scene/")
+        cls.subject_id = "R1291M"
+        cls.localization = 1
 
     def test_setup(self):
         setup_status = setup(self.subject_id, self.paths)
-        assert setup_status == True
+        assert setup_status is True
         assert os.path.exists(os.path.join(self.paths.cortex, "lh.pial"))
         assert os.path.exists(os.path.join(self.paths.cortex, "rh.pial"))
         assert os.path.exists(os.path.join(self.paths.cortex, "lh.aparc.annot"))
@@ -40,4 +41,10 @@ class TestPipeline:
                                             self.paths, True)
         assert os.path.exists(returned_paths.rh_hcp)
         assert os.path.exists(returned_paths.lh_hcp)
+
+    @classmethod
+    def teardown_class(cls):
+        """ Cleanup to run when test cases finish """
+        if os.path.exists(cls.paths.cortex):
+            shutil.rmtree(cls.paths.cortex)
 
