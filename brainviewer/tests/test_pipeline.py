@@ -74,7 +74,7 @@ class TestPipeline:
         prior_stim_output = FilePaths(
             root="/",
             prior_stim=os.path.join(self.paths.base,
-                                    "prior_stim/R1291M_1_allcoords.csv"))
+                                    "prior_stim/R1291M_1_allcords.csv"))
         returned_paths = gen_blender_scene(self.subject_id, self.localization,
                                            self.paths, True, prior_stim_output,
                                            self.paths, self.paths, self.paths)
