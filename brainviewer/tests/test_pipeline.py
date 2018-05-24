@@ -61,6 +61,13 @@ class TestPipeline:
                                                      True)
         assert os.path.exists(returned_paths.prior_stim)
 
+    @pytest.mark.rhino
+    def test_gen_blender_scene(self):
+        returned_paths = gen_blender_scene(self.subject_id, self.localization,
+                                           self.paths, True, self.paths,
+                                           self.paths, self.paths, self.paths)
+        assert os.path.exists(returned_paths.blender_file)
+
     # @classmethod
     # def teardown_class(cls):
     #     """ Cleanup to run when test cases finish """

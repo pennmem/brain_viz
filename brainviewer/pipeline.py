@@ -13,6 +13,7 @@ from brainviewer.mapper import build_prior_stim_location_mapping
 
 datafile = functools.partial(resource_filename, 'brainviewer.templates')
 bin_files = functools.partial(resource_filename, 'brainviewer.bin')
+code_files = functools.partial(resource_filename, 'brainviewer')
 
 
 def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
@@ -55,8 +56,8 @@ def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
 
     if blender:
         # Complete the blender-related tasks
-        setup_standalone_blender_scene(paths)
-        gen_blender_scene()
+        blender_setup_status = setup_standalone_blender_scene(paths)
+        gen_blender_scene(subject_id, localization, prior_stim)
 
     return fs_files.compute()
 
@@ -146,7 +147,7 @@ def setup_standalone_blender_scene(paths: FilePaths, force_rerun=False):
         shutil.rmtree(paths.output)
 
     shutil.copytree(template_dir, paths.output)
-    return
+    return True
 
 
 def freesurfer_to_wavefront(paths: FilePaths, setup_status: bool) -> FilePaths:
@@ -384,8 +385,32 @@ def split_hcp_surface(paths: FilePaths, hcp_files: FilePaths,
     return exp_files
 
 
-def gen_blender_scene():
-    return
+def gen_blender_scene(subject_id: str, localization: int, paths: FilePaths,
+                      build_site_status, prior_stim_paths: FilePaths,
+                      split_hcp_files: FilePaths, split_dk_files: FilePaths,
+                      electrode_coord_files: FilePaths):
+    prior_stim_sites = prior_stim_paths.prior_stim
+    subject_localiztion = _combine_subject_localization(subject_id,
+                                                        localization)
+    subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
+                    "-b",
+                    datafile("iEEG_surface_template/empty.blend"),
+                    "-b",
+                    "--python",
+                    code_files("create_scene.py"),
+                    "--",
+                    subject_localiztion,
+                    paths.cortex,
+                    paths.tal,
+                    paths.output,
+                    prior_stim_sites],
+                   check=True)
+
+    exp_output = FilePaths(root="/",
+                           blender_file=os.path.join(paths.output,
+                                                     'iEEG_surface.json'))
+
+    return exp_output
 
 
 def _combine_subject_localization(subject_id: str, localization: int):
