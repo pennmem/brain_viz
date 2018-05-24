@@ -47,12 +47,18 @@ class TestPipeline:
         returned_paths = split_cortical_surface(self.paths, self.paths)
         assert os.path.exists(returned_paths.lh0001)
 
-    @classmethod
-    def teardown_class(cls):
-        """ Cleanup to run when test cases finish """
-        if os.path.exists(cls.paths.cortex):
-            shutil.rmtree(cls.paths.cortex)
+    @pytest.mark.rhino
+    def test_split_hcp_surface(self):
+        returned_paths = split_hcp_surface(self.paths, self.paths, self.paths)
+        assert os.path.exists(returned_paths.lh_hcp)
+        assert os.path.exists(returned_paths.rh_hcp)
 
-        if os.path.exists(cls.paths.output):
-            shutil.rmtree(cls.paths.output)
+    # @classmethod
+    # def teardown_class(cls):
+    #     """ Cleanup to run when test cases finish """
+    #     if os.path.exists(cls.paths.cortex):
+    #         shutil.rmtree(cls.paths.cortex)
+    #
+    #     if os.path.exists(cls.paths.output):
+    #         shutil.rmtree(cls.paths.output)
 

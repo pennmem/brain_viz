@@ -1,4 +1,5 @@
 import os
+import glob
 import shutil
 import subprocess
 import functools
@@ -330,29 +331,45 @@ def split_cortical_surface(paths: FilePaths, fs_to_wav_files: FilePaths) -> File
     return exp_files
 
 
-def split_hcp_surface(subject_id: str, localization: int,  paths: FilePaths,
-                      hcp_map_status: bool, fs_to_wav_status: bool):
-    """
-        Creates individual wavefront object for each region based on the
-        Human Connectome Project (HCP) atlas
+def split_hcp_surface(paths: FilePaths, hcp_files: FilePaths,
+                      fs_to_wav_files: FilePaths) -> FilePaths:
+    subprocess.run(" ".join([bin_files("annot2dpv"),
+                             os.path.join(paths.cortex, "lh.HCP-MMP1.annot"),
+                             os.path.join(paths.cortex, "lh.HCP-MMP1.annot.dpv")]),
+                   shell=True,
+                   check=True)
+    subprocess.run(" ".join([bin_files("annot2dpv"),
+                             os.path.join(paths.cortex, "rh.HCP-MMP1.annot"),
+                             os.path.join(paths.cortex, "rh.HCP-MMP1.annot.dpv")]),
+                   shell=True,
+                   check=True)
+    subprocess.run(" ".join([bin_files("splitsrf"),
+                             os.path.join(paths.cortex, "lh.pial.srf"),
+                             os.path.join(paths.cortex, "lh.HCP-MMP1.annot.dpv"),
+                             os.path.join(paths.cortex, "lh.hcp")]),
+                   shell=True,
+                   check=True)
+    subprocess.run(" ".join([bin_files("splitsrf"),
+                             os.path.join(paths.cortex, "rh.pial.srf"),
+                             os.path.join(paths.cortex, "rh.HCP-MMP1.annot.dpv"),
+                             os.path.join(paths.cortex, "rh.hcp")]),
+                   shell=True,
+                   check=True)
+    exp_files = FilePaths(root="/", lh_hcp=os.path.join(paths.cortex, "lh.hcp"),
+                          rh_hcp=os.path.join(paths.cortex, "rh.hcp"))
 
-    Parameters
-    ----------
-    subject_id: str
-        ID of the subject
-    localization: int
-        Localization number
-    paths: :class:`cml_pipelines.paths.FilePaths` container for common paths
-    hcp_map_status: bool
-        Result of the hcp
-    fs_to_wav_status: bool
-        Result of the freesurfer to wavefront conversion step
+    # Convert .srf files to .obj
 
-    Returns
-    -------
+    hcp_surfaces = glob.glob(os.path.join(paths.cortex,"/*.hcp.*.srf"))
+    for surface in hcp_surfaces:
+        subprocess.run(" ".join([bin_files("srf2obj"),
+                                 surface,
+                                 ">",
+                                 surface.replace(".srf", ".obj")]),
+                       shell=True,
+                       check=True)
 
-    """
-    return True
+    return exp_files
 
 
 def gen_blender_scene():
