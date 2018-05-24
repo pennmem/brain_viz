@@ -63,8 +63,12 @@ class TestPipeline:
 
     @pytest.mark.rhino
     def test_gen_blender_scene(self):
+        prior_stim_output = FilePaths(
+            root="/",
+            prior_stim=os.path.join(self.paths.base,
+                                    "prior_stim/R1291M_1_allcoords.csv"))
         returned_paths = gen_blender_scene(self.subject_id, self.localization,
-                                           self.paths, True, self.paths,
+                                           self.paths, True, prior_stim_output,
                                            self.paths, self.paths, self.paths)
         assert os.path.exists(returned_paths.blender_file)
 
