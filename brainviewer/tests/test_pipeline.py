@@ -9,14 +9,14 @@ datafile = functools.partial(resource_filename, 'brainviewer.tests.data')
 class TestPipeline:
     @classmethod
     def setup_class(cls):
-        cls.paths = FilePaths(datafile("R1291M_1/"), base="", cortex="surf/roi/",
-                              image="imaging/autoloc/", tal="tal/",
-                              output="blender_scene/")
+        cls.paths = FilePaths(datafile("R1291M_1/"), base="",
+                              cortex="surf/roi/", image="imaging/autoloc/",
+                              tal="tal/", output="blender_scene/")
         cls.subject_id = "R1291M"
         cls.localization = 1
 
     def test_setup(self):
-        setup_status = setup(self.subject_id, self.paths)
+        setup_status = setup(self.subject_id, self.localization, self.paths)
         assert setup_status is True
         assert os.path.exists(os.path.join(self.paths.cortex, "lh.pial"))
         assert os.path.exists(os.path.join(self.paths.cortex, "rh.pial"))
@@ -26,8 +26,8 @@ class TestPipeline:
     def test_setup_standalone_blender_scene(self):
         setup_standalone_blender_scene(self.paths)
 
-        assert os.path.exists(datafile("output/blender_scene/iEEG_surface.html"))
-        shutil.rmtree(datafile("output/blender_scene/"), ignore_errors=True)
+        assert os.path.exists(os.path.join(self.paths.output,
+                                           "iEEG_surface.html"))
 
     @pytest.mark.rhino
     def test_freesurfer_to_wavefront(self):
@@ -47,4 +47,7 @@ class TestPipeline:
         """ Cleanup to run when test cases finish """
         if os.path.exists(cls.paths.cortex):
             shutil.rmtree(cls.paths.cortex)
+
+        if os.path.exists(cls.paths.output):
+            shutil.rmtree(cls.paths.output)
 

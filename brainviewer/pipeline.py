@@ -86,7 +86,7 @@ def setup_paths(subject_id: str, localization: str):
     return paths
 
 
-def setup(subject_id: str, localization: str, paths: FilePaths):
+def setup(subject_id: str, localization: int, paths: FilePaths) -> bool:
     """
         Set up directory structure, move starter files, and check for the
         existence of other files that the full pipeline depends on.
@@ -96,7 +96,7 @@ def setup(subject_id: str, localization: str, paths: FilePaths):
     ----------
     subject_id: str
         ID of subject
-    localization: str
+    localization: int
         Localization number to use
     paths: `cml_pipelines.paths.FilePaths` container for various file paths
 
@@ -106,7 +106,7 @@ def setup(subject_id: str, localization: str, paths: FilePaths):
         True if task completed successfully
 
     """
-    if (os.path.exists(paths.cortex) == False):
+    if os.path.exists(paths.cortex) is False:
         os.mkdir(paths.cortex)
 
     subject_localization = _combine_subject_localization(subject_id,
