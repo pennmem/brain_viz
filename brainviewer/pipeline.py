@@ -47,6 +47,8 @@ def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
     hcp_files = avg_hcp_to_subject(subject_id, localization, paths,
                                    setup_status)
 
+    split_files = split_cortical_surface(paths, fs_files)
+
     if blender:
         # Complete the blender-related tasks
         setup_standalone_blender_scene(paths)
@@ -235,9 +237,92 @@ def gen_mapped_prior_stim_sites(subject_id, paths, setup_status):
     return
 
 
-def split_cortical_surface(subject_id: str, paths: FilePaths,
-                           fs_to_wav_status: bool):
-    return
+def split_cortical_surface(paths: FilePaths, fs_to_wav_files: FilePaths) -> FilePaths:
+    subprocess.run(" ".join([bin_files("annot2dpv"),
+                             os.path.join(paths.cortex, "rh.aparc.annot"),
+                             os.path.join(paths.cortex, "rh.aparc.annot.dpv")]),
+                   shell=True,
+                   check=True)
+    subprocess.run(" ".join([bin_files("annot2dpv"),
+                             os.path.join(paths.cortex, "lh.aparc.annot"),
+                             os.path.join(paths.cortex, "lh.aparc.annot.dpv")]),
+                   shell=True,
+                   check=True)
+
+    subprocess.run(" ".join([bin_files("splitsrf"),
+                             os.path.join(paths.cortex, "rh.pial.srf"),
+                             os.path.join(paths.cortex, "rh.aparc.annot.dpv"),
+                             os.path.join(paths.cortex, "rh.pial_roi")]),
+                   shell=True,
+                   check=True)
+
+    subprocess.run(" ".join([bin_files("splitsrf"),
+                             os.path.join(paths.cortex, "lh.pial.srf"),
+                             os.path.join(paths.cortex, "lh.aparc.annot.dpv"),
+                             os.path.join(paths.cortex, "lh.pial_roi")]),
+                   shell=True,
+                   check=True)
+
+    # Mapping between the default numeric number and the name of the brain
+    # region
+    surf_num_dict = {"0001": "Unmeasured.obj",
+                     "0002": "BanksSuperiorTemporal.obj",
+                     "0003": "CACingulate.obj",
+                     "0004": "MiddleFrontalCaudal.obj",
+                     "0005": "Cuneus.obj",
+                     "0006": "Entorhinal.obj",
+                     "0007": "Fusiform.obj",
+                     "0008": "InferiorParietal.obj",
+                     "0009": "InferiorTemporal.obj",
+                     "0010": "Isthmus.obj",
+                     "0011": "LateralOccipital.obj",
+                     "0012": "OrbitalFrontal.obj",
+                     "0013": "Lingual.obj",
+                     "0014": "MedialOrbitalFrontal.obj",
+                     "0015": "MiddleTemporal.obj",
+                     "0016": "Parahippocampal.obj",
+                     "0017": "ParacentralLobule.obj",
+                     "0018": "InfFrontalParsOpercularis.obj",
+                     "0019": "InfFrontalParsOrbitalis.obj",
+                     "0020": "InfFrontalParsTriangularis.obj",
+                     "0021": "Pericalcarine.obj",
+                     "0022": "Post-Central.obj",
+                     "0023": "PosteriorCingulate.obj",
+                     "0024": "Pre-Central.obj",
+                     "0025": "PreCuneus.obj",
+                     "0026": "RACingulate.obj",
+                     "0027": "MiddleFrontalRostral.obj",
+                     "0028": "SuperiorFrontal.obj",
+                     "0029": "SuperiorParietal.obj",
+                     "0030": "SuperiorTemporal.obj",
+                     "0031": "Supra-Marginal.obj",
+                     "0032": "FrontalPole.obj",
+                     "0033": "TemporalPole.obj",
+                     "0034": "TransverseTemporal.obj",
+                     "0035": "Insula.obj"}
+
+    base_input_file = paths.cortex + "/{hemisphere}.pial_roi.{surface_num}.srf"
+    base_output_file = paths.cortex + "/{hemisphere}.{surface_name}"
+    exp_files = FilePaths(root="/")
+    for hemisphere in ["lh", "rh"]:
+        for surface in surf_num_dict.keys():
+            subprocess.run(" ".join([bin_files("srf2obj"),
+                                     base_input_file.format(
+                                         hemisphere=hemisphere,
+                                         surface_num=surface),
+                                     ">",
+                                     base_output_file.format(
+                                         hemisphere=hemisphere,
+                                         surface_name=surf_num_dict[surface])]),
+                           shell=True,
+                           check=True)
+            # Adding the output file to the set of paths
+            setattr(exp_files, "".join([hemisphere, surface]),
+                    base_output_file.format(hemisphere=hemisphere,
+                                            surface_name=surf_num_dict[surface])
+                    )
+
+    return exp_files
 
 
 def split_hcp_surface(subject_id: str, localization: int,  paths: FilePaths,

@@ -42,6 +42,11 @@ class TestPipeline:
         assert os.path.exists(returned_paths.rh_hcp)
         assert os.path.exists(returned_paths.lh_hcp)
 
+    @pytest.mark.rhino
+    def test_split_cortical_surface(self):
+        returned_paths = split_cortical_surface(self.paths, True)
+        assert os.path.exists(returned_paths.lh001)
+
     @classmethod
     def teardown_class(cls):
         """ Cleanup to run when test cases finish """
