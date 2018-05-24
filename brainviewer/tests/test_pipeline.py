@@ -15,6 +15,13 @@ class TestPipeline:
         cls.subject_id = "R1291M"
         cls.localization = 1
 
+    def test_save_coords_for_blender(self):
+        returned_path = save_coords_for_blender(self.subject_id,
+                                                self.localization,
+                                                self.paths.tal,
+                                                rootdir=self.paths.root)
+        assert os.path.exists(returned_path)
+
     def test_setup(self):
         setup_status = setup(self.subject_id, self.localization, self.paths)
         assert setup_status is True
