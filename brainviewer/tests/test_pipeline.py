@@ -15,11 +15,12 @@ class TestPipeline:
         cls.subject_id = "R1291M"
         cls.localization = 1
 
+    @pytest.mark.rhino
     def test_save_coords_for_blender(self):
         returned_path = save_coords_for_blender(self.subject_id,
                                                 self.localization,
                                                 self.paths.tal,
-                                                rootdir=self.paths.root)
+                                                rootdir="/")
         assert os.path.exists(returned_path)
 
     def test_setup(self):
