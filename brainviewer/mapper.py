@@ -36,6 +36,9 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
         Filepath where data based on MRI/CT imaging can be found
 
     """
+    basedir = basedir + "/"
+    imagedir = imagedir + "/"
+
     if os.path.exists(imagedir) is False:
         msg = "autloc folder for {} does not exist".format(subject)
         logging.error(msg)
