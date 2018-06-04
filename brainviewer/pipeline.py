@@ -20,7 +20,7 @@ def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
                                    paths: Optional[FilePaths] = None,
                                    force_rerun: Optional[bool] = False,
                                    blender: Optional[bool] = False):
-    """ Generate the underlying data necessary to constract a 3D brain view
+    """ Generate the underlying data necessary to construct a 3D brain view
 
     Parameters
     ----------
@@ -28,6 +28,13 @@ def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
         Subject identifier
     localization: int
         Localization to use for building the brain viewer
+    paths: `cml_pipelines.paths.FilePaths`
+        Container for various file paths
+    force_rerun: bool
+        If True, cached results and previously-generated files are ignored so
+        that the brain visualization can be rebuilt
+    blender: bool
+        If True, the blender version of the 3D brain visualization is built
 
     Keyword Arguments
     -----------------
@@ -43,23 +50,31 @@ def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
         paths = setup_paths(subject_id)
 
     setup_status = make_task(setup, subject_id, paths, force_rerun=force_rerun)
-    electrode_coord_path = save_coords_for_blender(subject_id, localization,
-                                                   paths.tal,
-                                                   rootdir=paths.root)
-    fs_files = freesurfer_to_wavefront(paths, setup_status)
-    hcp_files = avg_hcp_to_subject(subject_id, localization, paths,
-                                   setup_status)
-
-    split_files = split_cortical_surface(paths, fs_files)
-    prior_stim = gen_mapped_prior_stim_sites(subject_id, localization, paths,
-                                             setup_status)
-
+    electrode_coord_path = make_task(save_coords_for_blender, subject_id,
+                                     localization, paths.tal,
+                                     rootdir=paths.root)
+    fs_files = make_task(freesurfer_to_wavefront, paths, setup_status)
+    hcp_subj_files = make_task(avg_hcp_to_subject, subject_id, localization,
+                               paths, setup_status)
+    hcp_files = make_task(split_hcp_surface, paths, hcp_subj_files, fs_files)
+    dk_files = make_task(split_dk_surface, paths, fs_files)
+    prior_stim = make_task(gen_mapped_prior_stim_sites, subject_id,
+                           localization, paths, setup_status)
     if blender:
         # Complete the blender-related tasks
-        blender_setup_status = setup_standalone_blender_scene(paths)
-        gen_blender_scene(subject_id, localization, prior_stim)
+        blender_setup_status = make_task(setup_standalone_blender_scene, paths)
+        output = make_task(gen_blender_scene, subject_id, localization, paths,
+                           blender_setup_status, prior_stim, hcp_files,
+                           dk_files, electrode_coord_path).compute()
+        return
 
-    return fs_files.compute()
+    # If not producing the blender scene, simply create the underlying data
+    electrode_coord_path.compute()
+    hcp_files.compute()
+    dk_files.compute()
+    prior_stim.compute()
+
+    return
 
 
 def setup_paths(subject_id: str, localization: str):
@@ -138,8 +153,22 @@ def setup(subject_id: str, localization: int, paths: FilePaths) -> bool:
     return True
 
 
-def setup_standalone_blender_scene(paths: FilePaths, force_rerun=False):
-    """ Copies the Blender template files to the final destination """
+def setup_standalone_blender_scene(paths: FilePaths, force_rerun=False) -> bool:
+    """ Copies Blender template files to the final output location
+
+    Parameters
+    ----------
+    paths: `cml_pipelines.paths.FilePaths`
+        Container for file paths
+    force_rerun: bool
+        If true, overwrites existing files
+
+    Returns
+    -------
+    bool: True if copy was successful, False on failure
+
+    """
+
     template_dir = datafile("iEEG_surface_template/")
     if os.path.exists(paths.output):
         if not force_rerun:
@@ -151,7 +180,22 @@ def setup_standalone_blender_scene(paths: FilePaths, force_rerun=False):
 
 
 def freesurfer_to_wavefront(paths: FilePaths, setup_status: bool) -> FilePaths:
-    """ Convert Freesurfer brain piece models to wavefront format """
+    """ Convert Freesurfer brain piece models to wavefront format
+
+    Parameters
+    ----------
+    paths: :class:`cml_pipelines.paths.FilePaths
+        File path container
+    setup_status: bool
+        If true, setup step was succesful. Indicates that this task is
+        dependent on the setup completing successfully
+
+    Returns
+    -------
+    exp_files: :class:`cml_pipelines.paths.FilePaths`
+        File path container with files produced by the task
+
+    """
     subprocess.run("mris_convert " +
                    os.path.join(paths.cortex, "lh.pial ") +
                    os.path.join(paths.cortex, "lh.pial.asc"),
@@ -196,9 +240,10 @@ def avg_hcp_to_subject(subject_id: str, localization: int, paths: FilePaths,
     ----------
     subject_id: str
         ID of subject
-    localization: int
+    localization: str
         Localization number to use
-    paths: :class:`cml_pipelines.paths.FilePaths` container for various file paths
+    paths: :class:`cml_pipelines.paths.FilePaths`
+        Container for various file paths produced by the task
     setup_status: bool
         True if the setup task completed successfully. The presence of this
         boolean in the function signature is used to notify the pipeline
@@ -206,8 +251,8 @@ def avg_hcp_to_subject(subject_id: str, localization: int, paths: FilePaths,
 
     Returns
     -------
-    setup_status: bool
-        True if task completed successfully
+    exp_files: :class:`cml_pipelines.paths.FilePaths`
+        File path container object containing files produced by this task
 
     """
 
@@ -237,13 +282,36 @@ def avg_hcp_to_subject(subject_id: str, localization: int, paths: FilePaths,
                 paths.cortex)
 
     exp_files = FilePaths(root="/",
-                          rh_hcp=os.path.join(paths.cortex, "rh.HCP-MMP1.annot"),
-                          lh_hcp=os.path.join(paths.cortex, "lh.HCP-MMP1.annot"))
+                          rh_hcp=os.path.join(paths.cortex,
+                                              "rh.HCP-MMP1.annot"),
+                          lh_hcp=os.path.join(paths.cortex,
+                                              "lh.HCP-MMP1.annot"))
 
     return exp_files
 
 
-def gen_mapped_prior_stim_sites(subject_id, localization, paths, setup_status):
+def gen_mapped_prior_stim_sites(subject_id, localization, paths,
+                                setup_status) -> FilePaths:
+    """ Map prior stim site locations into this subject's coordinate space
+
+    Parameters
+    ----------
+    subject_id: str
+        Subject ID
+    localization: str
+        Localization number to use
+    paths: :class:`cml_pipelines.paths.FilePaths`
+        Container for various file paths needed by the task
+    setup_status: bool
+        Status of the setup task. Indicates that this task is dependent on
+        setup completing successfully
+
+    Returns
+    -------
+    exp_paths: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files produced by this task
+
+    """
     subject_localization = _combine_subject_localization(subject_id,
                                                          localization)
     output_file = build_prior_stim_location_mapping(subject_localization,
@@ -255,7 +323,23 @@ def gen_mapped_prior_stim_sites(subject_id, localization, paths, setup_status):
     return exp_paths
 
 
-def split_cortical_surface(paths: FilePaths, fs_to_wav_files: FilePaths) -> FilePaths:
+def split_dk_surface(paths: FilePaths, fs_to_wav_files: FilePaths) -> FilePaths:
+    """ Creates individual brain objects based on Desikan-Killiany atlas
+
+    Parameters
+    ----------
+    paths: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files needed by this task
+    fs_to_wav_files: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files produced by the freesurfer_to_wavefront,
+        which also indicates a dependency on this task
+
+    Returns
+    -------
+    exp_files: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files produced by this task
+
+    """
     subprocess.run(" ".join([bin_files("annot2dpv"),
                              os.path.join(paths.cortex, "rh.aparc.annot"),
                              os.path.join(paths.cortex, "rh.aparc.annot.dpv")]),
@@ -343,8 +427,27 @@ def split_cortical_surface(paths: FilePaths, fs_to_wav_files: FilePaths) -> File
     return exp_files
 
 
-def split_hcp_surface(paths: FilePaths, hcp_files: FilePaths,
+def split_hcp_surface(paths: FilePaths, hcp_subj_files: FilePaths,
                       fs_to_wav_files: FilePaths) -> FilePaths:
+    """ Creates individual brain objects based on the HCP atlas
+
+    Parameters
+    ----------
+    paths: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files needed by this task
+    hcp_subj_files: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files produced by the avg_hcp_to_subject task,
+        indicating a dependency on this task
+    fs_to_wav_files: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files produced by the freesurfer_to_wavefront
+        task, indicating a dependency on this task
+
+    Returns
+    -------
+    exp_files: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files produced by this task
+
+    """
     subprocess.run(" ".join([bin_files("annot2dpv"),
                              os.path.join(paths.cortex, "lh.HCP-MMP1.annot"),
                              os.path.join(paths.cortex, "lh.HCP-MMP1.annot.dpv")]),
@@ -388,7 +491,39 @@ def split_hcp_surface(paths: FilePaths, hcp_files: FilePaths,
 def gen_blender_scene(subject_id: str, localization: int, paths: FilePaths,
                       build_site_status, prior_stim_paths: FilePaths,
                       split_hcp_files: FilePaths, split_dk_files: FilePaths,
-                      electrode_coord_files: FilePaths):
+                      electrode_coord_files: FilePaths) -> FilePaths:
+    """ Creates the Blender-based 3D brain standalone brain visualization
+
+    Parameters
+    ----------
+    subject_id: str
+        Subject ID
+    localization: str
+        Localization number to use
+    paths: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files needed by this task
+    build_site_status: bool
+        Status of the setup_standalone_blender_scene task, indicating a
+        dependency on this task
+    prior_stim_paths: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files produced by the
+        gen_mapped_prior_stim_sites task, indicating a dependency on this task
+    split_hcp_files: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files produced by the split_hcp_surface task,
+        indicating a dependency on this task
+    split_dk_files: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files produced by the split_dk_surface,
+        indicating a dependency on this task
+    electrode_coord_files: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files produced by the save_coords_for_blender
+        task, indicating a dependency on this task
+
+    Returns
+    -------
+    exp_output: :class:`cml_pipelines.paths.FilePaths`
+        File path container for files produced by this task
+
+    """
     prior_stim_sites = prior_stim_paths.prior_stim
     subject_localiztion = _combine_subject_localization(subject_id,
                                                         localization)
