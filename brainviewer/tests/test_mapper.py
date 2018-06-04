@@ -19,24 +19,34 @@ class TestMapper:
                               workdir="prior_stim/",
                               baselinedir="prior_stim_baseline/",
                               imagedir="imaging/autoloc/")
-        cls.subject_id = "R1291M"
-        cls.localization = 1
+        cls.subject_id = "R1291M_1"
+        print(cls.paths.workdir)
 
-    @classmethod
-    def teardown_class(cls):
-        if os.path.exists(cls.paths.workdir):
-            shutil.rmtree(cls.paths.workdir, ignore_errors=True)
-        return
+    # @classmethod
+    # def teardown_class(cls):
+    #     if os.path.exists(cls.paths.workdir):
+    #         shutil.rmtree(cls.paths.workdir, ignore_errors=True)
+    #     return
 
     def test_initialize(self):
-        mapper.initialize(self.subject_id, self.paths.workdir,
-                          self.paths.imagedir)
+        mapper.initialize(self.subject_id, self.paths.workdir + "/",
+                          self.paths.imagedir + "/")
         assert os.path.exists("".join([self.paths.workdir, self.subject_id,
                                        "_stimdeltarec_mni.nii.gz"]))
         assert os.path.exists("".join([self.paths.workdir, self.subject_id,
                                        "_stimdeltarec_target_T1.nii.gz"]))
         assert os.path.exists("".join([self.paths.workdir, self.subject_id,
                                        "_stimdeltarec_target_CT.nii.gz"]))
+
+    def test_get_orig_mat(self):
+        norig_matrix = mapper.get_orig_mat(self.paths.basedir, "vox2ras")
+        assert np.shape(norig_matrix) == (4, 4)
+
+        norig_comparison_matrix = np.loadtxt(self.paths.baselinedir + "Norig.txt")
+        assert np.allclose(norig_matrix, norig_comparison_matrix)
+
+        torig_matrix = mapper.get_orig_mat(self.paths.basedir, "vox2ras-tkr")
+        assert np.shape(torig_matrix) == (4, 4)
 
 
 def setup_directories(subject):
@@ -63,20 +73,6 @@ def test_initialize():
 
     return
 
-def test_get_orig_mat():
-    subject = "R1291M_1"
-    basedir, workdir, baselinedir, imagedir = setup_directories(subject)
-
-    Norig_matrix = mapper.get_orig_mat(basedir, "vox2ras")
-    assert np.shape(Norig_matrix) == (4,4)
-
-    Norig_comparison_matrix = np.loadtxt(baselinedir + "Norig.txt")
-    assert np.allclose(Norig_matrix, Norig_comparison_matrix)
-
-    Torig_matrix = mapper.get_orig_mat(basedir, "vox2ras-tkr")
-    assert np.shape(Torig_matrix) == (4,4)
-
-    return
 
 def test_generate_generic_RAS_file():
     subject = "R1291M_1"
