@@ -1,4 +1,6 @@
+import os
 import pytest
+import shutil
 import functools
 from pkg_resources import resource_filename
 
@@ -8,7 +10,8 @@ from cml_pipelines.paths import FilePaths
 datafile = functools.partial(resource_filename, 'brainviewer.tests.data')
 
 
-class TestPipeline:
+class TestPipelineTasks:
+    """ Functional tests for individual pipeline tasks """
     @classmethod
     def setup_class(cls):
         cls.paths = FilePaths(datafile("R1291M_1/"), base="",
@@ -84,12 +87,31 @@ class TestPipeline:
                                            self.paths, self.paths, self.paths)
         assert os.path.exists(returned_paths.blender_file)
 
-    # @classmethod
-    # def teardown_class(cls):
-    #     """ Cleanup to run when test cases finish """
-    #     if os.path.exists(cls.paths.cortex):
-    #         shutil.rmtree(cls.paths.cortex)
-    #
-    #     if os.path.exists(cls.paths.output):
-    #         shutil.rmtree(cls.paths.output)
+    @classmethod
+    def teardown_class(cls):
+        """ Cleanup to run when test cases finish """
+        if os.path.exists(cls.paths.cortex):
+            shutil.rmtree(cls.paths.cortex)
+
+        if os.path.exists(cls.paths.output):
+            shutil.rmtree(cls.paths.output)
+
+
+def test_full_pipeline():
+    """ Black-box test for the full 3D pipeline """
+    paths = FilePaths(datafile("R1291M_1/"), base="",
+                      cortex="surf/roi/", image="imaging/autoloc/",
+                      tal="tal/", output="blender_scene/")
+    subject_id = "R1291M"
+    localization = 1
+    output_file = generate_3d_brain_viz(subject_id, localization, paths=paths,
+                                        force_rerun=True, blender=True)
+
+    assert os.path.exists(output_file.blender_file)
+
+    if os.path.exists(paths.cortex):
+        shutil.rmtree(paths.cortex)
+
+    if os.path.exists(paths.output):
+        shutil.rmtree(paths.output)
 

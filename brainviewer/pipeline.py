@@ -19,13 +19,14 @@ code_files = functools.partial(resource_filename, 'brainviewer')
 __all__ = ["setup", "setup_paths", "setup_standalone_blender_scene",
            "freesurfer_to_wavefront", "avg_hcp_to_subject",
            "gen_mapped_prior_stim_sites", "split_hcp_surface",
-           "split_dk_surface", "gen_blender_scene", "save_coords_for_blender"]
+           "split_dk_surface", "gen_blender_scene", "save_coords_for_blender",
+           "generate_3d_brain_viz"]
 
 
-def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
-                                   paths: Optional[FilePaths] = None,
-                                   force_rerun: Optional[bool] = False,
-                                   blender: Optional[bool] = False):
+def generate_3d_brain_viz(subject_id: str, localization: int,
+                          paths: Optional[FilePaths] = None,
+                          force_rerun: Optional[bool] = False,
+                          blender: Optional[bool] = False):
     """ Generate the underlying data necessary to construct a 3D brain view
 
     Parameters
@@ -71,15 +72,14 @@ def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
         blender_setup_status = make_task(setup_standalone_blender_scene, paths)
         output = make_task(gen_blender_scene, subject_id, localization, paths,
                            blender_setup_status, prior_stim, hcp_files,
-                           dk_files, electrode_coord_path).compute()
-        return
+                           dk_files, electrode_coord_path)
+        return output.compute()
 
     # If not producing the blender scene, simply create the underlying data
     electrode_coord_path.compute()
     hcp_files.compute()
     dk_files.compute()
     prior_stim.compute()
-
     return
 
 
