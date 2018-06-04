@@ -10,30 +10,80 @@ from cml_pipelines import make_task
 from cml_pipelines.paths import FilePaths
 from brainviewer.coords4blender import save_coords_for_blender
 from brainviewer.mapper import build_prior_stim_location_mapping
+from brainviewer.deltarec import build_prior_stim_results_table
 
 datafile = functools.partial(resource_filename, 'brainviewer.templates')
 bin_files = functools.partial(resource_filename, 'brainviewer.bin')
 code_files = functools.partial(resource_filename, 'brainviewer')
 
 
-__all__ = ["setup", "setup_paths", "setup_standalone_blender_scene",
-           "freesurfer_to_wavefront", "avg_hcp_to_subject",
-           "gen_mapped_prior_stim_sites", "split_hcp_surface",
-           "split_dk_surface", "gen_blender_scene", "save_coords_for_blender",
-           "generate_3d_brain_viz"]
+__all__ = ["setup_subject_directory", "setup_paths",
+           "setup_standalone_blender_scene", "freesurfer_to_wavefront",
+           "avg_hcp_to_subject", "gen_mapped_prior_stim_sites",
+           "split_hcp_surface", "split_dk_surface", "gen_blender_scene",
+           "save_coords_for_blender", "generate_subject_brain",
+           "generate_average_brain"]
 
 
-def generate_3d_brain_viz(subject_id: str, localization: int,
-                          paths: Optional[FilePaths] = None,
-                          force_rerun: Optional[bool] = False,
-                          blender: Optional[bool] = False):
+def generate_average_brain(paths: Optional[FilePaths] = None,
+                           blender: Optional[bool] = False,
+                           force_rerun: Optional[bool] = False):
+    """
+        Generate the underlying data necessary to create a 3D view for an
+        average brain
+
+    Parameters
+    ----------
+    paths: :class:`cml_pipelines.paths.FilePaths`
+        File path container for paths needed by the pipeline
+    blender: bool
+        If True, generates standalone Blender files for the average brain
+    force_rerun: bool
+        If True, overwrites existing visualization if one exists
+    """
+    if paths is None:
+        paths = setup_avg_paths()
+
+    prior_stim_results_df = make_task(build_prior_stim_results_table).compute()
+    prior_stim_results_df = prior_stim_results_df[
+        prior_stim_results_df["deltarec"].isnull() == False]
+    del prior_stim_results_df["montage_num"]  # not needed in this case
+
+    stimfile = "".join([paths.output, "/", "prior_stim_locations.csv"])
+    prior_stim_results_df.to_csv(stimfile, index=False)
+
+    if blender:
+        blender_setup_status = make_task(setup_standalone_blender_scene,
+                                         paths,
+                                         avg=True,
+                                         force_rerun=force_rerun).compute()
+
+        # run subprocess to generate the blender scene for average brain
+        subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
+                        "-b",
+                        datafile("iEEG_surface_template/empty.blend"),
+                        "-b",
+                        "--python",
+                        code_files("create_scene.py"),
+                        "--",
+                        paths.avg_roi,
+                        paths.output,
+                        stimfile],
+                       check=True)
+
+
+def generate_subject_brain(subject_id: str, localization: str,
+                           paths: Optional[FilePaths] = None,
+                           force_rerun: Optional[bool] = False,
+                           blender: Optional[bool] = False):
     """ Generate the underlying data necessary to construct a 3D brain view
+        specific to a particular subject
 
     Parameters
     ----------
     subject_id: str
         Subject identifier
-    localization: int
+    localization: str
         Localization to use for building the brain viewer
     paths: `cml_pipelines.paths.FilePaths`
         Container for various file paths
@@ -54,9 +104,10 @@ def generate_3d_brain_viz(subject_id: str, localization: int,
 
     """
     if paths is None:
-        paths = setup_paths(subject_id)
+        paths = setup_paths(subject_id, localization)
 
-    setup_status = make_task(setup, subject_id, paths, force_rerun=force_rerun)
+    setup_status = make_task(setup_subject_directory, subject_id, localization,
+                             paths, force_rerun=force_rerun)
     electrode_coord_path = make_task(save_coords_for_blender, subject_id,
                                      localization, paths.tal,
                                      rootdir=paths.root)
@@ -83,10 +134,24 @@ def generate_3d_brain_viz(subject_id: str, localization: int,
     return
 
 
+def setup_avg_paths() -> FilePaths:
+    """ Create default paths for building average brain visualization
+
+    Returns
+    -------
+    paths: :class:`cml_pipelines.paths.FilePaths`
+        File path container
+    """
+    paths = FilePaths("/", output="reports/r1/subjects/avg/",
+                      avg_roi="data10/eeg/freesurfer/subjects/average/surf/roi/")
+    return paths
+
+
 def setup_paths(subject_id: str, localization: str):
     """
         Helper function to produce a `cml_pipelines.paths.FilePaths` object
-        with production paths
+        with production paths for building a subject-specific 3D brain
+        visualization
 
     Parameters
     ----------
@@ -114,7 +179,8 @@ def setup_paths(subject_id: str, localization: str):
     return paths
 
 
-def setup(subject_id: str, localization: int, paths: FilePaths) -> bool:
+def setup_subject_directory(subject_id: str, localization: int,
+                            paths: FilePaths) -> bool:
     """
         Set up directory structure, move starter files, and check for the
         existence of other files that the full pipeline depends on.
@@ -159,13 +225,16 @@ def setup(subject_id: str, localization: int, paths: FilePaths) -> bool:
     return True
 
 
-def setup_standalone_blender_scene(paths: FilePaths, force_rerun=False) -> bool:
+def setup_standalone_blender_scene(paths: FilePaths, avg=False,
+                                   force_rerun=False) -> bool:
     """ Copies Blender template files to the final output location
 
     Parameters
     ----------
     paths: `cml_pipelines.paths.FilePaths`
         Container for file paths
+    avg: bool
+        If True, use the template for the average brain
     force_rerun: bool
         If true, overwrites existing files
 
@@ -174,11 +243,15 @@ def setup_standalone_blender_scene(paths: FilePaths, force_rerun=False) -> bool:
     bool: True if copy was successful, False on failure
 
     """
+    if avg:
+        template_dir = datafile("iEEG_avg_surface_template/")
+    else:
+        template_dir = datafile("iEEG_surface_template/")
 
-    template_dir = datafile("iEEG_surface_template/")
     if os.path.exists(paths.output):
         if not force_rerun:
-            raise RuntimeError("Blender scene already exists. Use force rerun option to overwrite")
+            raise RuntimeError("Blender scene already exists. Use force rerun "
+                               "option to overwrite")
         shutil.rmtree(paths.output)
 
     shutil.copytree(template_dir, paths.output)
@@ -546,7 +619,6 @@ def gen_blender_scene(subject_id: str, localization: int, paths: FilePaths,
                     paths.output,
                     prior_stim_sites],
                    check=True)
-
     exp_output = FilePaths(root="/",
                            blender_file=os.path.join(paths.output,
                                                      'iEEG_surface.json'))
@@ -563,4 +635,3 @@ def _combine_subject_localization(subject_id: str, localization: int):
         subject_localization = "_".join([subject_id, localization])
 
     return subject_localization
-

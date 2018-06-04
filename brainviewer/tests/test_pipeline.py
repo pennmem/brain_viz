@@ -29,7 +29,8 @@ class TestPipelineTasks:
         assert os.path.exists(returned_path)
 
     def test_setup(self):
-        setup_status = setup(self.subject_id, self.localization, self.paths)
+        setup_status = setup_subject_directory(self.subject_id,
+                                               self.localization, self.paths)
         assert setup_status is True
         assert os.path.exists(os.path.join(self.paths.cortex, "lh.pial"))
         assert os.path.exists(os.path.join(self.paths.cortex, "rh.pial"))
@@ -104,8 +105,8 @@ def test_full_pipeline():
                       tal="tal/", output="blender_scene/")
     subject_id = "R1291M"
     localization = 1
-    output_file = generate_3d_brain_viz(subject_id, localization, paths=paths,
-                                        force_rerun=True, blender=True)
+    output_file = generate_subject_brain(subject_id, localization, paths=paths,
+                                         force_rerun=True, blender=True)
 
     assert os.path.exists(output_file.blender_file)
 
@@ -114,4 +115,20 @@ def test_full_pipeline():
 
     if os.path.exists(paths.output):
         shutil.rmtree(paths.output)
+
+
+def test_gen_avg_brain():
+    """ Black-box test for generating average brain """
+
+    paths = FilePaths(datafile("average"), avg_roi="surf/roi/",
+                      output="blender_scene/")
+
+    generate_average_brain(paths=paths, blender=True, force_rerun=True)
+
+    assert os.path.exists(paths.output + '/iEEG_surface.blend')
+    assert os.path.exists(paths.output + '/iEEG_surface.bin')
+    assert os.path.exists(paths.output + '/iEEG_surface.json')
+
+    if os.path.exists(paths.output):
+        shutil.rmtree(paths.output, ignore_errors=True)
 
