@@ -1,4 +1,6 @@
 import pytest
+import functools
+from pkg_resources import resource_filename
 
 from brainviewer.pipeline import *
 from cml_pipelines.paths import FilePaths
@@ -75,6 +77,8 @@ class TestPipeline:
             root="/",
             prior_stim=os.path.join(self.paths.base,
                                     "prior_stim/R1291M_1_allcords.csv"))
+        # Most of the FilePaths objects that are passed are only used to
+        # denote dependencies and are not actually used, which is why
         returned_paths = gen_blender_scene(self.subject_id, self.localization,
                                            self.paths, True, prior_stim_output,
                                            self.paths, self.paths, self.paths)

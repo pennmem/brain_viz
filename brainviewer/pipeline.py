@@ -16,6 +16,12 @@ bin_files = functools.partial(resource_filename, 'brainviewer.bin')
 code_files = functools.partial(resource_filename, 'brainviewer')
 
 
+__all__ = ["setup", "setup_paths", "setup_standalone_blender_scene",
+           "freesurfer_to_wavefront", "avg_hcp_to_subject",
+           "gen_mapped_prior_stim_sites", "split_hcp_surface",
+           "split_dk_surface", "gen_blender_scene"]
+
+
 def generate_data_for_3d_brain_viz(subject_id: str, localization: int,
                                    paths: Optional[FilePaths] = None,
                                    force_rerun: Optional[bool] = False,

@@ -2,8 +2,41 @@ import os
 import filecmp
 import numpy as np
 import shutil
+import functools
+
+from pkg_resources import resource_filename
 
 import brainviewer.mapper as mapper
+from cml_pipelines.paths import FilePaths
+
+datafile = functools.partial(resource_filename, 'brainviewer.tests.data')
+
+
+class TestMapper:
+    @classmethod
+    def setup_class(cls):
+        cls.paths = FilePaths(datafile("R1291M_1/"), base="",
+                              workdir="prior_stim/",
+                              baselinedir="prior_stim_baseline/",
+                              imagedir="imaging/autoloc/")
+        cls.subject_id = "R1291M"
+        cls.localization = 1
+
+    @classmethod
+    def teardown_class(cls):
+        if os.path.exists(cls.paths.workdir):
+            shutil.rmtree(cls.paths.workdir, ignore_errors=True)
+        return
+
+    def test_initialize(self):
+        mapper.initialize(self.subject_id, self.paths.workdir,
+                          self.paths.imagedir)
+        assert os.path.exists("".join([self.paths.workdir, self.subject_id,
+                                       "_stimdeltarec_mni.nii.gz"]))
+        assert os.path.exists("".join([self.paths.workdir, self.subject_id,
+                                       "_stimdeltarec_target_T1.nii.gz"]))
+        assert os.path.exists("".join([self.paths.workdir, self.subject_id,
+                                       "_stimdeltarec_target_CT.nii.gz"]))
 
 
 def setup_directories(subject):
