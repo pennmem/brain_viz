@@ -107,7 +107,7 @@ def generate_subject_brain(subject_id: str, localization: str,
         paths = setup_paths(subject_id, localization)
 
     setup_status = make_task(setup_subject_directory, subject_id, localization,
-                             paths, force_rerun=force_rerun)
+                             paths)
     electrode_coord_path = make_task(save_coords_for_blender, subject_id,
                                      localization, paths.tal,
                                      rootdir=paths.root)
@@ -147,7 +147,8 @@ def setup_avg_paths() -> FilePaths:
     return paths
 
 
-def setup_paths(subject_id: str, localization: str):
+def setup_paths(subject_id: str, localization: str,
+                rhino_root: Optional[str] ="/"):
     """
         Helper function to produce a `cml_pipelines.paths.FilePaths` object
         with production paths for building a subject-specific 3D brain
@@ -157,10 +158,10 @@ def setup_paths(subject_id: str, localization: str):
     ----------
     subject_id: str
         ID of subject to generate the brain visualization
-
     localization: str
         Localization number as a string to use. Typically this is 0.
-
+    rhino_root: str, default: "/"
+        Mount point for RHINO
     """
     subject_localization = _combine_subject_localization(subject_id,
                                                          localization)
@@ -173,8 +174,7 @@ def setup_paths(subject_id: str, localization: str):
     IMAGE = "/data10/RAM/subjects/{}/imaging/autoloc/".format(subject_localization)
     OUTPUT = "/reports/r1/subjects/{}/reports/iEEG_surface".format(subject_localization)
 
-    RHINO_ROOT = "/"
-    paths = FilePaths(RHINO_ROOT, base=BASE, cortex=CORTEX, contact=CONTACT,
+    paths = FilePaths(rhino_root, base=BASE, cortex=CORTEX, contact=CONTACT,
                       tal=TAL, image=IMAGE, output=OUTPUT)
     return paths
 
@@ -635,3 +635,10 @@ def _combine_subject_localization(subject_id: str, localization: int):
         subject_localization = "_".join([subject_id, localization])
 
     return subject_localization
+
+
+# For quicker ad-hoc testing
+
+if __name__ == "__main__":
+    generate_subject_brain("R1387E", "0", blender=True, force_rerun=True)
+
