@@ -165,6 +165,7 @@ def setup_paths(subject_id: str, localization: str,
     """
     subject_localization = _combine_subject_localization(subject_id,
                                                          localization)
+    subject_num = _extract_subject_num(subject_id)
 
     # Common paths used throughout the pipeline
     BASE = "/data10/eeg/freesurfer/subjects/{}".format(subject_localization)
@@ -172,7 +173,7 @@ def setup_paths(subject_id: str, localization: str,
     CONTACT = "/data10/RAM/subjects/{}/tal/coords".format(subject_localization)
     TAL = "/data10/RAM/subjects/{}/tal".format(subject_localization)
     IMAGE = "/data10/RAM/subjects/{}/imaging/autoloc/".format(subject_localization)
-    OUTPUT = "/reports/r1/subjects/{}/reports/iEEG_surface".format(subject_localization)
+    OUTPUT = "/reports/r1/subjects/{}/reports/iEEG_surface".format(subject_num)
 
     paths = FilePaths(rhino_root, base=BASE, cortex=CORTEX, contact=CONTACT,
                       tal=TAL, image=IMAGE, output=OUTPUT)
@@ -637,8 +638,25 @@ def _combine_subject_localization(subject_id: str, localization: int):
     return subject_localization
 
 
+def _extract_subject_num(subject):
+    """ Helper function to extract subject number from ID """
+    if subject.find("R1") == -1:
+        raise RuntimeError("Only R1 protocol subjects supported")
+
+    subject_num = subject.replace("R1", "")
+    if subject.find("_") == -1:
+        subject_num = subject_num[:-1]
+        return subject_num
+
+    underscore_idx = subject_num.find("_")
+    subject_num = subject_num[:underscore_idx - 1] + subject_num[underscore_idx:]
+    return subject_num
+
+
 # For quicker ad-hoc testing
 
 if __name__ == "__main__":
-    generate_subject_brain("R1387E", "0", blender=True, force_rerun=True)
+    paths = setup_paths("R1387E", "0", rhino_root='/Volumes/RHINO/')
+    generate_subject_brain("R1387E", "0", paths=paths, blender=True,
+                           force_rerun=True)
 
