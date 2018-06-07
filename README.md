@@ -1,6 +1,37 @@
 # 3-D Brain Visualization Pipeline
-This repository contains source code for generating web-based 3D brain visualizations of localized surface and depth electrodes for RAM subjects. At a high level, the following steps are taken in order to build these visualizations:
+This repository contains the pipeline code for generating all of the underlying
+files necessary to produce a 3D rendering of a RAM subject's brain.
 
+## Brief History
+Version 1.0 of the pipeline used [luigi](https://github.com/spotify/luigi) for
+the pipeline framework. Pipelines could be triggered from the CML web-app, which
+used a home-grown messaging service to pass the request along, ultimately
+triggering a subprocess call.
+
+Version 2.0 of the pipeline uses the Dask + Joblib framework from the
+[cml_pipelines](https://github.com/pennmem/cml_pipelines) repository. Pipelines
+can still be triggered from the CML web-app. Instead of using a home-grown
+solution, we now leverage Celery + RabbitMQ to execute the pipeline.
+Alternatively, users can use the command line interface to initiate a pipeline.
+This is the same as how web-based reports are produced. The intention of
+version 2.0 is to reduce the complexity of getting the various services up and
+running by re-using the same pipelining and task execution framework as for
+web-based reports. The downside to this approach is that the cml_pipelines
+framework is more suited towards computational pipelines and not I/O heavy
+pipelines.
+
+## Installation
+
+The brainviewer pipeline code can be installed from conda:
+
+```
+conda env create -y -n brainviewer python=3
+conda install -c pennmem brainviewer
+```
+
+
+
+## Overview
 1. Convert object files from freesurfer to Wavefront format
 2. Split the cortical surface into independent regions
 3. Build underlying data files
@@ -50,6 +81,11 @@ If all dependencies are successfully installed, the pipeline can be triggered us
 ```PYTHONPATH="." luigi --module src.pipeline GenBlenderScene --SUBJECT R1001P --SUBJECT-NUM 001 --local-scheduler```
 
 ## Testing
+Download test data from RHINO. Update pytest.ini with your full path to
+the mock directory structure.
+
+pytest brainviewer/ -x
+
 From the same directory as the README:
 1. Execute all unit and functional tests: ```pytest tests/```
 2. Include coverage report: ```pytest tests/ --cov-report html --cov=src ```

@@ -7,7 +7,7 @@ import pandas as pd
 
 from brainviewer.deltarec import build_prior_stim_results_table
 
-
+# TODO: Move these into the repository
 # Module level globals
 CH2 = "~sudas/DARPA/ch2.nii.gz"
 RDIR = "~sudas/bin/localization/template_to_NickOasis"
@@ -63,10 +63,12 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
     subjects = prior_stim_df["subject_id"].unique()
     for stim_subject in subjects:
         if stim_subject in SUBJECT_BLACKLIST:
-            logging.info("Skipping {} because they are blacklisted. Updated the blacklist if this is undesired.".format(subject))
+            logging.info("Skipping {} because they are blacklisted. Update the "
+                         "blacklist if this is undesired.".format(subject))
             continue
 
-        logging.info("Converting coordinates from stim subject {} to subject {}".format(stim_subject, subject))
+        logging.info("Converting coordinates from stim subject {} to subject "
+                     "{}".format(stim_subject, subject))
         stimulated_bipolars = prior_stim_df[prior_stim_df["subject_id"] == stim_subject]["contact_name"].unique()
         for bipolar_contact in stimulated_bipolars:
             montage_num = prior_stim_df[(prior_stim_df["subject_id"] == stim_subject) &
@@ -114,7 +116,7 @@ def build_prior_stim_location_mapping(subject, basedir, imagedir):
 
 
 def initialize(subject, workdir, imagedir):
-    if os.path.exists(workdir) == False:
+    if os.path.exists(workdir) is False:
         os.mkdir(workdir)
 
     subprocess.run("c3d " + CH2 + " -scale 0 -o " + workdir + subject +\
@@ -150,7 +152,7 @@ def generate_generic_RAS_file(imagedir, workdir, subject):
     imagedir = imagedir
     subprocess.run('c3d_affine_tool ' + imagedir +\
                    '/T01_CT_to_T00_mprageANTs0GenericAffine_RAS.mat -oitk ' +\
-                   workdir + subject +\
+                   workdir + subject + \
                    '_T01_CT_to_T00_mprageANTs0GenericAffine_RAS_itk.txt',
                    shell=True)
     return

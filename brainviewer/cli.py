@@ -7,9 +7,11 @@ def build_average_brain_visualization(input_args=None):
     parser = ArgumentParser()
     parser.add_argument('--blender', '-b', action='store_true', default=False,
                         help='Generate Blender standalone 3D viewer')
+    parser.add_argument('--force', '-f', action='store_true', default=False,
+                        help='Overwrite blender files if they exist')
 
     args = parser.parse_args(input_args)
-    generate_average_brain(blender=args.blender)
+    generate_average_brain(blender=args.blender, force_rerun=args.force)
     memory.clear()
 
 
@@ -19,10 +21,12 @@ def build_subject_brain_visualization(input_args=None):
     parser.add_argument('--localization', '-l', help='Localization number')
     parser.add_argument('--blender', '-b', action='store_true', default=False,
                         help='Generate Blender standalone 3D viewer')
+    parser.add_argument('--force', '-f', action='store_true', default=False,
+                        help='Overwrite blender files if they exist')
 
     args = parser.parse_args(input_args)
     generate_subject_brain(args.subject, args.localization,
-                           blender=args.blender)
+                           blender=args.blender, force_rerun=args.force)
     memory.clear()
 
 

@@ -142,7 +142,7 @@ def setup_avg_paths() -> FilePaths:
     paths: :class:`cml_pipelines.paths.FilePaths`
         File path container
     """
-    paths = FilePaths("/", output="reports/r1/subjects/avg/",
+    paths = FilePaths("/", output="reports/r1/subjects/avg/iEEG_surface",
                       avg_roi="data10/eeg/freesurfer/subjects/average/surf/roi/")
     return paths
 
@@ -651,9 +651,3 @@ def _extract_subject_num(subject):
     underscore_idx = subject_num.find("_")
     subject_num = subject_num[:underscore_idx - 1] + subject_num[underscore_idx:]
     return subject_num
-
-
-# For quicker ad-hoc testing
-if __name__ == "__main__":
-    generate_subject_brain("R1387E", 0, blender=True, force_rerun=True)
-
