@@ -3,6 +3,7 @@ import glob
 import shutil
 import subprocess
 import functools
+import pandas as pd
 from pkg_resources import resource_filename
 from typing import Optional
 
@@ -44,19 +45,17 @@ def generate_average_brain(paths: Optional[FilePaths] = None,
     if paths is None:
         paths = setup_avg_paths()
 
-    prior_stim_results_df = make_task(build_prior_stim_results_table).compute()
-    prior_stim_results_df = prior_stim_results_df[
-        prior_stim_results_df["deltarec"].isnull() == False]
-    del prior_stim_results_df["montage_num"]  # not needed in this case
-
-    stimfile = "".join([paths.output, "/", "prior_stim_locations.csv"])
-    prior_stim_results_df.to_csv(stimfile, index=False)
+    prior_stim_results_df = make_task(save_fsaverage_prior_stim_results,
+                                      paths).compute()
 
     if blender:
         blender_setup_status = make_task(setup_standalone_blender_scene,
                                          paths,
                                          avg=True,
                                          force_rerun=force_rerun).compute()
+        # Save a copy to the output folder
+        stimfile = "".join([paths.output, "/", "prior_stim_locations.csv"])
+        prior_stim_results_df.to_csv(stimfile, index=False)
 
         # run subprocess to generate the blender scene for average brain
         subprocess.run(["/usr/global/blender-2.78c-linux-glibc219-x86_64/blender",
@@ -126,23 +125,34 @@ def generate_subject_brain(subject_id: str, localization: str,
                            dk_files, electrode_coord_path)
         return output.compute()
 
+    avg_prior_stim_results_df = make_task(save_fsaverage_prior_stim_results,
+                                          paths)
+
     # If not producing the blender scene, simply create the underlying data
     electrode_coord_path.compute()
     hcp_files.compute()
     dk_files.compute()
+    avg_prior_stim_results_df.compute()
     prior_stim.compute()
     return
 
 
-def setup_avg_paths() -> FilePaths:
+def setup_avg_paths(rhino_root: Optional[str] = "/") -> FilePaths:
     """ Create default paths for building average brain visualization
+
+    Parameters
+    ----------
+    rhino_root: str
+        Mount point for RHINO
 
     Returns
     -------
     paths: :class:`cml_pipelines.paths.FilePaths`
         File path container
     """
-    paths = FilePaths("/", output="reports/r1/subjects/avg/iEEG_surface",
+    paths = FilePaths(rhino_root,
+                      avg_prior_stim="data10/eeg/freesurfer/subjects/fsaverage_joel/prior_stim/",
+                      output="reports/r1/subjects/avg/iEEG_surface",
                       avg_roi="data10/eeg/freesurfer/subjects/average/surf/roi/")
     return paths
 
@@ -176,7 +186,8 @@ def setup_paths(subject_id: str, localization: str,
     OUTPUT = "/reports/r1/subjects/{}/reports/iEEG_surface".format(subject_num)
 
     paths = FilePaths(rhino_root, base=BASE, cortex=CORTEX, contact=CONTACT,
-                      tal=TAL, image=IMAGE, output=OUTPUT)
+                      tal=TAL, image=IMAGE, output=OUTPUT,
+                      avg_prior_stim="data10/eeg/freesurfer/subjects/fsaverage_joel/prior_stim/")
     return paths
 
 
@@ -257,6 +268,31 @@ def setup_standalone_blender_scene(paths: FilePaths, avg=False,
 
     shutil.copytree(template_dir, paths.output)
     return True
+
+
+def save_fsaverage_prior_stim_results(paths: FilePaths) -> pd.DataFrame:
+    """ Saves the current snapshot of prior stim locations in fs average space
+
+    Parameters
+    ----------
+    paths: `cml_pipelines.paths.FilePaths`
+        Container for file paths
+
+    Returns
+    -------
+    prior_stim_results_df: `pd.Dataframe` of prior results
+
+    """
+    prior_stim_results_df = build_prior_stim_results_table()
+    prior_stim_results_df = prior_stim_results_df[
+        prior_stim_results_df["deltarec"].isnull() == False]
+    del prior_stim_results_df["montage_num"]  # not needed in this case
+
+    # Save it to the generic fs_average location for use by other applications
+    stimfile = "".join([paths.avg_prior_stim, "/",
+                        "fsaverage_joel_allcoords.csv"])
+    prior_stim_results_df.to_csv(stimfile, index=False)
+    return prior_stim_results_df
 
 
 def freesurfer_to_wavefront(paths: FilePaths, setup_status: bool) -> FilePaths:
@@ -651,3 +687,8 @@ def _extract_subject_num(subject):
     underscore_idx = subject_num.find("_")
     subject_num = subject_num[:underscore_idx - 1] + subject_num[underscore_idx:]
     return subject_num
+
+
+if __name__ == "__main__":
+    paths = setup_avg_paths("/Volumes/RHINO/")
+    generate_average_brain(paths, blender=True, force_rerun=True)
