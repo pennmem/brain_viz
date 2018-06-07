@@ -654,9 +654,6 @@ def _extract_subject_num(subject):
 
 
 # For quicker ad-hoc testing
-
 if __name__ == "__main__":
-    paths = setup_paths("R1387E", "0", rhino_root='/Volumes/RHINO/')
-    generate_subject_brain("R1387E", "0", paths=paths, blender=True,
-                           force_rerun=True)
+    generate_subject_brain("R1387E", 0, blender=True, force_rerun=True)
 
