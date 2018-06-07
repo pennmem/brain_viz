@@ -121,16 +121,17 @@ def generate_subject_brain(subject_id: str, localization: str,
     dk_files = make_task(split_dk_surface, paths, fs_files)
     prior_stim = make_task(gen_mapped_prior_stim_sites, subject_id,
                            localization, paths, setup_status)
+    avg_prior_stim_results_df = make_task(save_fsaverage_prior_stim_results,
+                                          paths)
+
     if blender:
+        avg_prior_stim_results_df.compute()
         # Complete the blender-related tasks
         blender_setup_status = make_task(setup_standalone_blender_scene, paths)
         output = make_task(gen_blender_scene, subject_id, localization, paths,
                            blender_setup_status, prior_stim, hcp_files,
                            dk_files, electrode_coord_path)
         return output.compute()
-
-    avg_prior_stim_results_df = make_task(save_fsaverage_prior_stim_results,
-                                          paths)
 
     # If not producing the blender scene, simply create the underlying data
     electrode_coord_path.compute()
