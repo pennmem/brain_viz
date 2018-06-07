@@ -1,6 +1,7 @@
 import os
 import glob
 import shutil
+import logging
 import subprocess
 import functools
 import pandas as pd
@@ -9,9 +10,13 @@ from typing import Optional
 
 from cml_pipelines import make_task
 from cml_pipelines.paths import FilePaths
+from brainviewer.log import get_logger
 from brainviewer.coords4blender import save_coords_for_blender
 from brainviewer.mapper import build_prior_stim_location_mapping
 from brainviewer.deltarec import build_prior_stim_results_table
+
+
+logger = get_logger()
 
 datafile = functools.partial(resource_filename, 'brainviewer.templates')
 bin_files = functools.partial(resource_filename, 'brainviewer.bin')
