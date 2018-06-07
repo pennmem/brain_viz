@@ -1,7 +1,6 @@
 import os
 import glob
 import shutil
-import logging
 import subprocess
 import functools
 import pandas as pd
