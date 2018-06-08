@@ -295,7 +295,7 @@ def save_fsaverage_prior_stim_results(paths: FilePaths) -> pd.DataFrame:
 
     # Save it to the generic fs_average location for use by other applications
     stimfile = "".join([paths.avg_prior_stim, "/",
-                        "fsaverage_joel_allcoords.csv"])
+                        "fsaverage_joel_allcords.csv"])
     prior_stim_results_df.to_csv(stimfile, index=False)
     return prior_stim_results_df
 
