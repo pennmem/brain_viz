@@ -1,6 +1,8 @@
 # 3-D Brain Visualization Pipeline
 This repository contains the pipeline code for generating all of the underlying
-files necessary to produce a 3D rendering of a RAM subject's brain.
+files necessary to produce a 3D rendering of a RAM subject's brain. This
+code is highly dependent upon RHINO and is therefore unlikely to be useful
+outside of CML without significant modification.
 
 ## Brief History
 Version 1.0 of the pipeline used [luigi](https://github.com/spotify/luigi) for
@@ -15,7 +17,7 @@ solution, we now leverage Celery + RabbitMQ to execute the pipeline.
 Alternatively, users can use the command line interface to initiate a pipeline.
 This is the same as how web-based reports are produced. The intention of
 version 2.0 is to reduce the complexity of getting the various services up and
-running by re-using the same pipelining and task execution framework as for
+running by re-using the same pipeline and task execution framework as for
 web-based reports. The downside to this approach is that the cml_pipelines
 framework is more suited towards computational pipelines and not I/O heavy
 pipelines.
@@ -29,6 +31,22 @@ conda env create -y -n brainviewer python=3
 conda install -c pennmem brainviewer
 ```
 
+Once the pipeline code is ready, you will now need to prepare your environment
+to be able to run the code, which depends on the following tools:
+
+- ANTS
+- Freesurfer
+- c3D
+- Matlab Runtime (MCR)
+- Blender
+- Blend4Web SDK
+
+Some of these tools are installed globally on RHINO (freesurfer, Blender,
+and Blend4Web SDK) and require no additional installation effort. The pipeline
+requires a very specific version of ANTS. At one point, I attempted to use a
+version that is publicly-available and the code no longer functioned, so we
+remain dependent on the version of ANTS that was installed by a specific user.
+The
 
 
 ## Overview
@@ -43,29 +61,7 @@ The final output can be viewed in two ways:
 
 The public and private views use the same underlying data, but the views may be slightly different because the UI for the privately-hosted web app is built dynamically to only display UI elements relevant to the contents of the underlying blender file. For example, if prior stim locations are unavailable for a subject, that UI button will not be displayed. In contrast, the standalone public versions display all UI elements by default.
 
-## Installation
-The current pipeline uses the following tools to build the 3D visualizations
 
-- ANTS
-- Freesurfer
-- c3D
-- Octave (to be removed)
-- Blender
-- Blend4Web SDK
-- Python
-
-To install the necessary python dependencies, use conda environments
-
-```conda create -f environment.yml```
-
-Activate the environment:
-
-```source activate brain_viz```
-
-Once the baseline set of packages are installed, you will need to install PTSA separately:
-
- ```conda install -c pennmem ptsa```
- 
  There are two places where paths are hard-coded. Both are related to logging. Update the logging_conf_file field in luigi.cfg.
  This file should point to the logging.conf file in your local repository. Next, update the args() field in the handler_outfile
  section of the logging.conf file. The first argument should point to a location on disk where the logs from the luigi tasks
