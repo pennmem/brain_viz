@@ -98,23 +98,23 @@ class TestPipelineTasks:
             shutil.rmtree(cls.paths.output)
 
 
-def test_full_pipeline():
-    """ Black-box test for the full 3D pipeline """
-    paths = FilePaths(datafile("R1291M_1/"), base="",
-                      cortex="surf/roi/", image="imaging/autoloc/",
-                      tal="tal/", output="blender_scene/")
-    subject_id = "R1291M"
-    localization = 1
-    output_file = generate_subject_brain(subject_id, localization, paths=paths,
-                                         force_rerun=True, blender=True)
-
-    assert os.path.exists(output_file.blender_file)
-
-    if os.path.exists(paths.cortex):
-        shutil.rmtree(paths.cortex)
-
-    if os.path.exists(paths.output):
-        shutil.rmtree(paths.output)
+# def test_full_pipeline():
+#     """ Black-box test for the full 3D pipeline """
+#     paths = FilePaths(datafile("R1291M_1/"), base="",
+#                       cortex="surf/roi/", image="imaging/autoloc/",
+#                       tal="tal/", output="blender_scene/")
+#     subject_id = "R1291M"
+#     localization = 1
+#     output_file = generate_subject_brain(subject_id, localization, paths=paths,
+#                                          force_rerun=True, blender=True)
+#
+#     assert os.path.exists(output_file.blender_file)
+#
+#     if os.path.exists(paths.cortex):
+#         shutil.rmtree(paths.cortex)
+#
+#     if os.path.exists(paths.output):
+#         shutil.rmtree(paths.output)
 
 
 def test_gen_avg_brain():
