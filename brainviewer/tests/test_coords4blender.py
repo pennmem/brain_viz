@@ -35,8 +35,8 @@ def test_localization_extraction():
 
 @pytest.mark.rhino
 def test_talstruct_extraction(rhino_root):
-    basedir = datafile("output/")
-    output_file = datafile("output/electrode_coordinates.csv")
+    basedir = datafile("R1001P/")
+    output_file = datafile("R1001P/electrode_coordinates.csv")
     save_coords_for_blender("R1001P",
                             0,
                             basedir,
