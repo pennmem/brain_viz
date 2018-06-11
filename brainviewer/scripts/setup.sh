@@ -5,11 +5,11 @@ DOWNLOADS=~/Downloads/
 
 cd ~
 if [ ! -d "$BIN" ]; then
-    mkdir ~/bin/bin
+    mkdir $BIN
 fi
 
 if [ ! -d "$Downloads" ]; then
-    mkdir ~/bin/Downloads
+    mkdir $DOWNLOADS
 fi
 
 echo "Installing c3d..."
