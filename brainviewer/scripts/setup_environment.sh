@@ -15,7 +15,7 @@ source $FREESURFER_HOME/SetUpFreeSurfer.sh
 export PATH
 
 # Make an alias for blender
-export BLENDER_HOME="/usr/global/blender"
+export BLENDER_HOME=/usr/global/blender-2.78c-linux-glibc219-x86_64/
 alias blender=$BLENDER_HOME/blender
 
 
