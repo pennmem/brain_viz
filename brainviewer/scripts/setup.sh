@@ -9,7 +9,7 @@ if [ ! -d "$BIN" ]; then
 fi
 
 if [ ! -d "$Downloads" ]; then
-    mkdir ~/bin/bin
+    mkdir ~/bin/Downloads
 fi
 
 echo "Installing c3d..."
