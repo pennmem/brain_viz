@@ -106,6 +106,11 @@ class TestPipelineTasks:
         if os.path.exists(cls.paths.output):
             shutil.rmtree(cls.paths.output)
 
+        average_coord_file = os.path.join(cls.paths.base,
+                                          'fsaverage_joel_allcords.csv')
+        if os.path.exists(average_coord_file):
+            os.remove(average_coord_file)
+
 
 def test_gen_avg_brain():
     """ Black-box test for generating average brain """
