@@ -82,7 +82,8 @@ class TestPipelineTasks:
             prior_stim=os.path.join(self.paths.base,
                                     "prior_stim/R1291M_1_allcords.csv"))
         # Most of the FilePaths objects that are passed are only used to
-        # denote dependencies and are not actually used, which is why
+        # denote dependencies and are not actually used, which is why it is
+        # okay to pass self.paths multiple times for testing
         returned_paths = gen_blender_scene(self.subject_id, self.localization,
                                            self.paths, True, prior_stim_output,
                                            self.paths, self.paths, self.paths)
@@ -96,25 +97,6 @@ class TestPipelineTasks:
 
         if os.path.exists(cls.paths.output):
             shutil.rmtree(cls.paths.output)
-
-
-# def test_full_pipeline():
-#     """ Black-box test for the full 3D pipeline """
-#     paths = FilePaths(datafile("R1291M_1/"), base="",
-#                       cortex="surf/roi/", image="imaging/autoloc/",
-#                       tal="tal/", output="blender_scene/")
-#     subject_id = "R1291M"
-#     localization = 1
-#     output_file = generate_subject_brain(subject_id, localization, paths=paths,
-#                                          force_rerun=True, blender=True)
-#
-#     assert os.path.exists(output_file.blender_file)
-#
-#     if os.path.exists(paths.cortex):
-#         shutil.rmtree(paths.cortex)
-#
-#     if os.path.exists(paths.output):
-#         shutil.rmtree(paths.output)
 
 
 def test_gen_avg_brain():
