@@ -386,7 +386,8 @@ def T1_transform(imagedir, workdir, warp_file, affine_transform_file, subject, s
                    workdir + subject + '_from_' + stim_subject +\
                    '_electrode_coordinates_mni_mid_tsub_T1.csv -t ' + warp_file +\
                    ' -t ' + affine_transform_file + ' -t ' + imagedir +\
-                   '/T00/thickness/' + subject + 'TemplateToSubject1Warp.nii.gz -t ' +\
+
+                  '/T00/thickness/' + subject + 'TemplateToSubject1Warp.nii.gz -t ' +\
                    imagedir + '/T00/thickness/' + subject + 'TemplateToSubject0GenericAffine.mat',
                    shell=True, check=True)
 

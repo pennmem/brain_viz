@@ -107,7 +107,7 @@ class TestMapper:
         outfile = stim_subject + "_electrode_coordinates_mni_mid.csv"
         assert os.path.exists(self.paths.workdir + "/" + outfile)
 
-    def test_CT_transform(self):
+    def test_ct_transform(self):
         subject = "R1291M_1"
         stim_subject = "R1001P"
         mapper.CT_transform(self.paths.imagedir + "/",
@@ -120,7 +120,7 @@ class TestMapper:
                            '_electrode_coordinates_mni_mid_tsub_CT.csv'])
         assert os.path.exists(self.paths.workdir + "/" + outfile)
 
-    def test_T1_transform(self):
+    def test_t1_transform(self):
         stim_subject = "R1001P"
         mapper.T1_transform(self.paths.imagedir + "/",
                             self.paths.workdir + "/",
