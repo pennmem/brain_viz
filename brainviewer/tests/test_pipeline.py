@@ -16,7 +16,8 @@ class TestPipelineTasks:
     def setup_class(cls):
         cls.paths = FilePaths(datafile("R1291M_1/"), base="",
                               cortex="surf/roi/", image="imaging/autoloc/",
-                              tal="tal/", output="blender_scene/")
+                              tal="tal/", output="blender_scene/",
+                              avg_prior_stim="")
         cls.subject_id = "R1291M"
         cls.localization = 1
 
@@ -42,6 +43,13 @@ class TestPipelineTasks:
 
         assert os.path.exists(os.path.join(self.paths.output,
                                            "iEEG_surface.html"))
+
+    def test_save_fsaverage_prior_stim_results(self):
+        returned_df = save_fsaverage_prior_stim_results(self.paths)
+        assert len(returned_df) > 0
+        assert os.path.exists(os.path.join(self.paths.base,
+                                           'fsaverage_joel_allcords.csv'))
+        pass
 
     @pytest.mark.rhino
     def test_freesurfer_to_wavefront(self):
@@ -103,13 +111,14 @@ def test_gen_avg_brain():
     """ Black-box test for generating average brain """
 
     paths = FilePaths(datafile("average"), avg_roi="surf/roi/",
-                      output="blender_scene/")
+                      output="blender_scene/", avg_prior_stim="")
 
     generate_average_brain(paths=paths, blender=True, force_rerun=True)
 
     assert os.path.exists(paths.output + '/iEEG_surface.blend')
     assert os.path.exists(paths.output + '/iEEG_surface.bin')
     assert os.path.exists(paths.output + '/iEEG_surface.json')
+    assert os.path.exists(paths.base + "fsaverage_joel_allcords.csv")
 
     if os.path.exists(paths.output):
         shutil.rmtree(paths.output, ignore_errors=True)

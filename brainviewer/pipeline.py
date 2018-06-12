@@ -27,7 +27,7 @@ __all__ = ["setup_subject_directory", "setup_paths",
            "avg_hcp_to_subject", "gen_mapped_prior_stim_sites",
            "split_hcp_surface", "split_dk_surface", "gen_blender_scene",
            "save_coords_for_blender", "generate_subject_brain",
-           "generate_average_brain"]
+           "generate_average_brain", "save_fsaverage_prior_stim_results"]
 
 
 def generate_average_brain(paths: Optional[FilePaths] = None,
