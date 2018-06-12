@@ -23,8 +23,6 @@ framework is more suited towards computational pipelines and not I/O heavy
 pipelines.
 
 
-###
-
 ## Installation
 
 Although the brainviewer pipeline code can be installed from conda,
@@ -192,17 +190,28 @@ in a git repository, so we maintain a copy of the necessary files in
 `/scratch/zduey/brainviewer_test_data/.` Copy those files into
 `brain_viz/brainviewer/tests/data/`.
 
-To run the full test suite, execute the following from RHINO, or some other
-environment that has all of the dependencies noted in the "Installation" section
-already installed:
+```bash
+cp /scratch/zduey/brainviewer_test_data/ ~/brain_viz/brainviewer/tests/data/
+```
+
+The tests require that the LD_LIBRARY_PATH and other environment variables
+mentioned in the setup section have been set. If you receiving the following
+error:
+
+```error while loading shared libraries: libmwlaunchermain.so: cannot open shared object file: No such file or directory```
+
+it is likely that those have not been correctly set. Temporarily set those
+variables before running the test suite:
+
+```bash
+source ~/brain_viz/brainviewer/scripts/setup_environment.sh
+```
+
+Run the tests:
 
 ```bash
 pytest brainviewer/ --rhino-root /
 ```
-
-While the current tests check that each stage of the pipeline passes, they do
-not currently test the combined pipelines.
-
 
 ## External Links
 - [Old Instructions for Building Manually](https://memory.psych.upenn.edu/InternalWiki/Electrode_Visualizations_using_Blender_and_Blend4Web)
