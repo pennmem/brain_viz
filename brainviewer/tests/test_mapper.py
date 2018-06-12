@@ -31,21 +31,24 @@ class TestMapper:
     def test_initialize(self):
         mapper.initialize(self.subject_id, self.paths.workdir + "/",
                           self.paths.imagedir + "/")
-        assert os.path.exists("".join([self.paths.workdir + "/", self.subject_id,
+        assert os.path.exists("".join([self.paths.workdir + "/",
+                                       self.subject_id,
                                        "_stimdeltarec_mni.nii.gz"]))
-        assert os.path.exists("".join([self.paths.workdir + "/", self.subject_id,
+        assert os.path.exists("".join([self.paths.workdir + "/",
+                                       self.subject_id,
                                        "_stimdeltarec_target_T1.nii.gz"]))
-        assert os.path.exists("".join([self.paths.workdir + "/", self.subject_id,
+        assert os.path.exists("".join([self.paths.workdir + "/",
+                                       self.subject_id,
                                        "_stimdeltarec_target_CT.nii.gz"]))
 
     def test_get_orig_mat(self):
-        norig_matrix = mapper.get_orig_mat(self.paths.basedir, "/vox2ras")
+        norig_matrix = mapper.get_orig_mat(self.paths.base, "/vox2ras")
         assert np.shape(norig_matrix) == (4, 4)
 
         norig_comparison_matrix = np.loadtxt(self.paths.baselinedir + "/Norig.txt")
         assert np.allclose(norig_matrix, norig_comparison_matrix)
 
-        torig_matrix = mapper.get_orig_mat(self.paths.basedir, "/vox2ras-tkr")
+        torig_matrix = mapper.get_orig_mat(self.paths.base, "/vox2ras-tkr")
         assert np.shape(torig_matrix) == (4, 4)
 
     def test_generate_generic_ras_file(self):
