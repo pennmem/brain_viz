@@ -207,9 +207,12 @@ variables before running the test suite:
 source ~/brain_viz/brainviewer/scripts/setup_environment.sh
 ```
 
-Run the tests:
+If running the tests from RHINO, do so from a Qlogin session:
 
 ```bash
+qlogin
+source activate brainviewer
+source ~/brain_viz/brainviewer/scripts/setup_environment.sh
 pytest brainviewer/ --rhino-root /
 ```
 
