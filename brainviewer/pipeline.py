@@ -238,7 +238,12 @@ def setup_subject_directory(subject_id: str, localization: int,
     assert os.path.exists(
         os.path.join(paths.image,
                      "T01_CT_to_T00_mprageANTs0GenericAffine_RAS.mat"))
-
+    assert os.path.exists(
+        os.path.join(paths.image,
+                     "T00_{}_mprage.nii.gz".format(subject_localization)))
+    assert os.path.exists(
+        os.path.join(paths.image,
+                     "T01_{}_CT.nii.gz".format(subject_localization)))
     return True
 
 
