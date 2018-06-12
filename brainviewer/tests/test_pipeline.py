@@ -123,8 +123,11 @@ def test_gen_avg_brain():
     assert os.path.exists(paths.output + '/iEEG_surface.blend')
     assert os.path.exists(paths.output + '/iEEG_surface.bin')
     assert os.path.exists(paths.output + '/iEEG_surface.json')
-    assert os.path.exists(paths.base + "fsaverage_joel_allcords.csv")
+    assert os.path.exists(paths.root + "fsaverage_joel_allcords.csv")
 
     if os.path.exists(paths.output):
         shutil.rmtree(paths.output, ignore_errors=True)
+    if os.path.exists(paths.root + "fsaverage_joel_allcords.csv"):
+        os.remove(paths.root + "fsaverage_joel_allcords.csv")
+
 
