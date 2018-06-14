@@ -25,14 +25,7 @@ pipelines.
 
 ## Installation
 
-Although the brainviewer pipeline code can be installed from conda,
-
-```
-conda env create -y -n brainviewer python=3
-conda install -c pennmem brainviewer
-```
-
-first time installation requires additional setup because the pipeline depends
+First time installation requires additional setup because the pipeline depends
 on the following software:
 
 - ANTS
@@ -129,6 +122,18 @@ curl "http://rhino2.psych.upenn.edu:8083/explorer/1/stream?format=csv&token=CML"
 
 A comma-delimited set of values should be returned. For additional checks,
 follow the "Testing" section below.
+
+
+After this initial setup has been complete, the pipeline code can be installed
+and updated from conda:
+
+```
+source activate brainviewer
+conda install -c pennmem brainviewer
+
+# updating
+conda update -c pennmem brainviewer
+```
 
 ## Building or Updating the Average Brain
 
