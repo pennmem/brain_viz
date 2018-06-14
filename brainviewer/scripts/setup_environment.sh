@@ -5,7 +5,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:"~/bin/mcr/v85/runtime/glnxa64:~/bin/mcr
 export MCR_CACHE_ROOT="~/"
 
 # Add bin folder and c3d to path
-PATH=$PATH:~/bin:~/c3d/bin/:/usr/global/freesurfer/bin:/usr/global/freesurfer/mni/bin:/home2/iped/dcmtk-3.6.0-linux-i686-static/bin:
+PATH=$PATH:~/bin:~/bin/c3d/bin/:/usr/global/freesurfer/bin:/usr/global/freesurfer/mni/bin:/home2/iped/dcmtk-3.6.0-linux-i686-static/bin:
 
 # Freesurfer setup
 export FREESURFER_HOME="/usr/global/freesurfer"
