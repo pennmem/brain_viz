@@ -127,7 +127,8 @@ def generate_subject_brain(subject_id: str, localization: str,
     if blender:
         avg_prior_stim_results_df.compute()
         # Complete the blender-related tasks
-        blender_setup_status = make_task(setup_standalone_blender_scene, paths)
+        blender_setup_status = make_task(setup_standalone_blender_scene, paths,
+                                         force_rerun=force_rerun)
         output = make_task(gen_blender_scene, subject_id, localization, paths,
                            blender_setup_status, prior_stim, hcp_files,
                            dk_files, electrode_coord_path)
