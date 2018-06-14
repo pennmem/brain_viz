@@ -56,8 +56,8 @@ conda environment:
 ```
 git clone https://github.com/pennmem/brain_viz.git
 conda create -y -n brainviewer python=3
-conda install -c pennmem -c conda-forge --file=requirements.txt
 source  activate brainviewer
+conda install -c pennmem -c conda-forge --file=requirements.txt
 ```
 
 Next, run the provided setup script, which will install c3d and the matlab
@@ -68,6 +68,10 @@ into your home directory:
 cd ~/brain_viz/brainviewer/scripts
 ./setup.sh
 ```
+
+Note: `setup.sh` assumes that the code has been cloned into your home directory.
+If the code has been cloned elsewhere, you will need to update the paths
+contained in `setup.sh`.
 
 You should now have all of the necessary dependencies installed assuming that
 you are working form RHINO, which already has Freesurfer and Blender installed
