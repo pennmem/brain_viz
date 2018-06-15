@@ -85,7 +85,16 @@ system.
 Since some of the dependencies have been installed locally, use the
 setup_environment.sh script to add some locations to your PATH and set a few
 other environment variables that are necessary for the matlab runtime to
-function properly.
+function properly. Note: In the $LD_LIBRARY_PATH variable, there are a few
+additions that include a `~.` For some reason, this does not play nicely, so
+you must update these paths to include the full path to the home directory. The
+updated environment variable will look something like the following:
+
+```
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:"/home1/[username]/bin/mcr/v85/runtime/glnxa64:..."
+```
+
+Once that is updated, you can source the file to set those variables:
 
 ```bash
 source ~/brain_viz/brainviewer/scripts/setup_environment.sh

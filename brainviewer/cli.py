@@ -23,10 +23,10 @@ def build_average_brain_visualization(input_args=None):
 def build_subject_brain_visualization(input_args=None):
     parser = ArgumentParser()
     parser.add_argument('--subject', '-s', help='Subject ID', required=True)
-    parser.add_argument('--localization', '-l', help='Localization number')
-    parser.add_argument('--blender', '-b', action='store_true', default=False,
-                        help='Generate Blender standalone 3D viewer',
+    parser.add_argument('--localization', '-l', help='Localization number',
                         required=True)
+    parser.add_argument('--blender', '-b', action='store_true', default=False,
+                        help='Generate Blender standalone 3D viewer')
     parser.add_argument('--force', '-f', action='store_true', default=False,
                         help='Overwrite blender files if they exist')
 
