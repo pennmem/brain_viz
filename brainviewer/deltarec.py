@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 
 
-BASE_QUERY_URL = "http://rhino2.psych.upenn.edu:8080/explorer/{}/stream?format=csv&token=CML"
+BASE_QUERY_URL = "http://rhino2.psych.upenn.edu:8083/explorer/{}/stream?format=csv&token=CML"
 
 
 def build_prior_stim_results_table():
@@ -31,11 +31,11 @@ def build_prior_stim_results_table():
 
     """
     # Executes the 'stimulated_contacts' saved query
-    stim_site_df = query_to_df(10)
+    stim_site_df = query_to_df(1)
 
     # Runs the recall table queries for FR, catFR, and PAL. Should be updated to
     # include TH and THR tasks in the future
-    recall_table_queries = [11,12,13]
+    recall_table_queries = [2, 3, 4]
     df = pd.DataFrame()
     for query in recall_table_queries:
         temp_df = query_to_df(query)
@@ -149,7 +149,10 @@ def fix_contact_name(contact_name):
     """
 
     tokens = contact_name.split("-")
-    fixed_contact_name = tokens[0] + " - " + tokens[1]
+    if len(tokens) < 2:
+        return contact_name
+
+    fixed_contact_name = tokens[0].strip() + " - " + tokens[1].strip()
 
     return fixed_contact_name
 

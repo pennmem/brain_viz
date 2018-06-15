@@ -1,0 +1,5 @@
+include *.rst
+include *.txt
+include brainviewer/templates/*
+include brainviewer/bin/*
+recursive-include brainviewer *.html *.js *.css *.mem *.blend

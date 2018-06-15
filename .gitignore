@@ -12,3 +12,8 @@ htmlcov/
 **/.cache/*
 docs/
 build/
+**/.DS_store
+.pytest_cache/
+brainviewer/tests/data/*
+!brainviewer/tests/data/__init__.py
+

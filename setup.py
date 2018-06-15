@@ -21,5 +21,10 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
-    keywords='brainview'
+    keywords='brainview',
+    entry_points={
+        'console_scripts': [
+            'build-subject-brain=brainviewer.cli:build_subject_brain_visualization',
+            'build-average-brain=brainviewer.cli:build_average_brain_visualization']
+    }
 )

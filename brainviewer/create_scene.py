@@ -9,7 +9,8 @@ logger = logging.getLogger('cml_web.brain_viz')
 bpy.ops.wm.addon_enable(module='blend4web')
 
 
-def gen_blender_scene(cortexdir, outputdir, priorstimdir, contactdir=None, subject=None, subject_num=None):
+def gen_blender_scene(cortexdir, outputdir, priorstimdir, contactdir=None,
+                      subject=None):
     update_world_settings()
     red, blue, green, white = setup_color_materials()
     load_meshes(cortexdir)
@@ -286,15 +287,14 @@ if __name__ == "__main__":
     else:
         args = args[args.index("--") + 1:]  # get all args after "--"
 
-    if len(args) == 6:
+    if len(args) == 5:
         subject = args[0]
-        subject_num = args[1]
-        cortex = args[2]
-        contact = args[3]
-        output = args[4]
-        stimfile = args[5]
+        cortex = args[1]
+        contact = args[2]
+        output = args[3]
+        stimfile = args[4]
         gen_blender_scene(cortex, output, stimfile, contactdir=contact,
-                          subject=subject, subject_num=subject_num)
+                          subject=subject)
 
     elif len(args) == 3:
         cortex = args[0]
