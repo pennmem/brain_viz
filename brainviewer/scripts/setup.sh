@@ -13,7 +13,7 @@ if [ ! -d "$Downloads" ]; then
 fi
 
 echo "Installing c3d..."
-./install_c3d.sh
+~/brain_viz/brainviewer/scripts/install_c3d.sh
 
 echo "Installing matlab 2015 runtime..."
-./install_mcr.sh
+~/brain_viz/brainviewer/scripts/install_mcr.sh
